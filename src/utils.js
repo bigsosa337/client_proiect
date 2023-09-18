@@ -1,5 +1,6 @@
-let url = 'http://localhost:3000/'
-let globalRequestParameters = {
+export const url = 'http://localhost:3000/';
+
+export const globalRequestParameters = {
     method: 'GET',
     mode: 'cors',
     cache: 'no-cache',
@@ -9,14 +10,10 @@ let globalRequestParameters = {
     },
     redirect: 'follow',
     referrerPolicy: 'no-referrer'
-}
+};
 
-let sortByName = function (a, b) {
+export function sortByName(a, b) {
     if (a.name < b.name) return -1;
     if (a.name > b.name) return 1;
     return 0;
-};
-
-module.exports.globalRequestParameters = globalRequestParameters;
-module.exports.url = url;
-module.exports.sortByName = sortByName;
+}
