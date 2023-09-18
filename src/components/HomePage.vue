@@ -67,7 +67,6 @@ export default {
 
                     this.imageFilenames = data.images;
                 } else {
-                    // Clear the search results if the query is too short
                     await this.fetchImageFilenames();
                 }
             } catch (error) {
