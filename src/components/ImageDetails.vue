@@ -7,6 +7,9 @@
         <div class="image-info">
             <h2>Subiect: {{ imageDetails.title }}</h2>
             <p>{{ imageDetails.description }}</p>
+            <button @click="deleteImage">Delete Image</button>
+            <button @click="duplicateImage">Duplicate Image</button>
+
         </div>
     </div>
 </template>
@@ -43,6 +46,40 @@ export default {
             } catch (error) {
                 console.error("Error fetching image details:", error);
                 // Handle errors, e.g., show an error message to the user
+            }
+        },
+        async deleteImage() {
+            try {
+                const filename = this.$route.params.filename;
+
+                const response = await fetch(`http://localhost:3000/deleteImage/${filename}`, {
+                    method: "DELETE",
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                this.$router.push("/");
+            } catch (error) {
+                console.error("Error deleting image:", error);
+            }
+        },
+        async duplicateImage() {
+            try {
+                const filename = this.$route.params.filename;
+
+                const response = await fetch(`http://localhost:3000/duplicateImage/${filename}`, {
+                    method: "POST",
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                alert("Image duplicated successfully.");
+                console.log("Image duplicated successfully.");
+            } catch (error) {
+                console.error("Error duplicating image:", error);
             }
         },
     },
