@@ -1,14 +1,19 @@
 <template>
     <div class="image-list">
+        <div class="search-bar">
+            <input type="text" v-model="searchQuery" @input="performSearch" placeholder="Search...">
+            <select v-model="searchOption" @change="performSearch">
+                <option value="title">Title</option>
+                <option value="description">Description</option>
+            </select>
+        </div>
         <div class="row">
             <div
                 v-for="(filename, index) in imageFilenames"
                 :key="index"
                 class="col-3 image-item"
             >
-                <!-- Display the image -->
                 <img :src="getImageUrl(filename)" alt="Image" @click="goToImage(filename)" />
-                <!-- Display other image details -->
                 <div class="imageDiv">
                     <p>{{ getImageTitle(filename) }}</p>
                     <!-- <p>{{ getImageDescription(filename) }}</p> -->
@@ -23,7 +28,10 @@
 export default {
     data() {
         return {
+            placeholder: [],
             imageFilenames: [],
+            searchQuery: "",
+            searchOption: "title",
         };
     },
     mounted() {
@@ -50,6 +58,21 @@ export default {
         },
         goToImage(filename) {
             this.$router.push(`/details/${filename}`);
+        },
+        async performSearch() {
+            try {
+                if (this.searchQuery.length >= 3) {
+                    const response = await fetch(`http://localhost:3000/searchImages?query=${this.searchQuery}&option=${this.searchOption}`);
+                    const data = await response.json();
+
+                    this.imageFilenames = data.images;
+                } else {
+                    // Clear the search results if the query is too short
+                    await this.fetchImageFilenames();
+                }
+            } catch (error) {
+                console.error('Error performing search:', error);
+            }
         },
         getImageDescription(filename) {
             return `Description for ${filename}`;
