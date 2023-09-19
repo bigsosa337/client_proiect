@@ -18,6 +18,7 @@
                 <button type="submit">Register</button>
             </div>
         </form>
+        <div>{{ message }}</div>
     </div>
 </template>
 
@@ -31,6 +32,7 @@ export default {
             username: "",
             password: "",
             email: "",
+            message: "",
         };
     },
     methods: {
@@ -53,7 +55,7 @@ export default {
 
             fetch(url + "register", requestParameters)
                 .then((res) => {
-                    res.text().then((res) => (alert(res)));
+                    res.text().then((res) => (this.message = res));
                 })
                 .catch((error) => {
                     console.error("Error registering user:", error);

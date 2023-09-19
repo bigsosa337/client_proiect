@@ -52,6 +52,9 @@ export default {
                 const response = await fetch("http://localhost:3000/uploadImage", {
                     method: "POST",
                     body: formData,
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
                 });
 
                 if(response.ok) {
@@ -74,38 +77,7 @@ export default {
                 alert("Something went wrong.");
             }
         },
-        async fetchImageInfo(filename) {
-            try {
-                // debugger
-
-                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.log(data)
-                // Update imageDetails with the response data
-                this.imageDetails = data.imageInfo;
-                console.log(data.imageInfo)
-
-                // Set the image source URL
-                this.imageSrc = `http://localhost:3000/getImageData/${filename}`;
-            } catch (error) {
-                console.error("Error fetching image details:", error);
-                // Handle errors, e.g., show an error message to the user
-            }
-        },
-
     },
-    mounted() {
-        // if(!localStorage.getItem("token")) {
-        //     router.push("/login");
-        // }
-        console.log('----------------------------------')
-        this.fetchImageInfo('1694706655228-surprised.webp')
-    }
 };
 </script>
 

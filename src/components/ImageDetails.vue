@@ -57,6 +57,11 @@ export default {
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        alert("You are not authorized to duplicate this image.");
+                    } else {
+                        alert("Something went wrong. Status code: " + response.status);
+                    }
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
 
@@ -74,11 +79,17 @@ export default {
                 });
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        alert("You are not authorized to duplicate this image.");
+                    } else {
+                        alert("Something went wrong. Status code: " + response.status);
+                    }
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 alert("Image duplicated successfully.");
                 console.log("Image duplicated successfully.");
             } catch (error) {
+
                 console.error("Error duplicating image:", error);
             }
         },

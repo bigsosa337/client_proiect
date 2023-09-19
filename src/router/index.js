@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import {createRouter, createWebHistory} from "vue-router";
 import HomePage from "../components/HomePage.vue";
 import UploadPicture from "../components/UploadPicture.vue";
 import ImageDetails from "@/components/ImageDetails.vue";
@@ -37,5 +37,13 @@ const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes,
 });
+router.beforeEach((to, from, next) => {
+    if (to.name === 'Upload' && !localStorage.getItem('token')) next({name: 'Login'})
+    else next()
+})
 
+router.beforeEach((to, from, next) => {
+    if (to.name === 'Register' || to.name === 'Login' && localStorage.getItem('token')) next({name: 'Home'})
+    else next()
+})
 export default router;
