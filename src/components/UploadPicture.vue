@@ -47,7 +47,7 @@ export default {
                 formData.append("image", this.image);
                 formData.append("title", this.title);
                 formData.append("description", this.description);
-                formData.append("tags", this.tags.split(","));
+                formData.append("tags", this.tags.split(",").map(tag => tag.trim()));
 
                 const response = await fetch("http://localhost:3000/uploadImage", {
                     method: "POST",
@@ -57,7 +57,7 @@ export default {
                     },
                 });
 
-                if(response.ok) {
+                if (response.ok) {
                     // alert("Image uploaded successfully.");
                     this.image = null;
                     this.title = "";
@@ -65,7 +65,7 @@ export default {
                     this.tags = "";
                     this.$router.push('/');
                 } else {
-                    if(response.status !== 204) { // Check if the status is not 204 No Content
+                    if (response.status !== 204) { // Check if the status is not 204 No Content
                         const error = await response.json();
                         alert(error.message || "Something went wrong.");
                     } else {
@@ -77,6 +77,7 @@ export default {
                 alert("Something went wrong.");
             }
         },
+
     },
 };
 </script>

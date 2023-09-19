@@ -6,18 +6,24 @@
                 <option value="title">Title</option>
                 <option value="description">Description</option>
             </select>
+            <label for="tagDropdown">Select Tags:</label>
+            <select id="tagDropdown" v-model="selectedTag" :multiple="true" @change="filterImagesByTag">
+                <option v-for="(tagArray, tagIndex) in tags" :key="tagIndex" :value="tagArray.join(', ')">
+                    {{ tagArray.join(', ') }}
+                </option>
+            </select>
+            <button @click="clearSearch">Clear Search</button>
         </div>
+
         <div class="row">
             <div
-                v-for="(filename, index) in imageFilenames"
-                :key="index"
-                class="col-3 image-item"
+                    v-for="(filename, index) in imageFilenames"
+                    :key="index"
+                    class="col-3 image-item"
             >
-                <img :src="getImageUrl(filename)" alt="Image" @click="goToImage(filename)" />
+                <img :src="getImageUrl(filename)" alt="Image" @click="goToImage(filename)"/>
                 <div class="imageDiv">
                     <p>{{ getImageTitle(filename) }}</p>
-                    <!-- <p>{{ getImageDescription(filename) }}</p> -->
-                    <!-- <p>Tags: {{ getImageTags(filename) }}</p> -->
                 </div>
             </div>
         </div>
@@ -32,6 +38,8 @@ export default {
             imageFilenames: [],
             searchQuery: "",
             searchOption: "title",
+            tags: [],
+            selectedTag: [],
         };
     },
     mounted() {
@@ -66,6 +74,7 @@ export default {
                     const data = await response.json();
 
                     this.imageFilenames = data.images;
+
                 } else {
                     await this.fetchImageFilenames();
                 }
@@ -73,16 +82,51 @@ export default {
                 console.error('Error performing search:', error);
             }
         },
-        getImageDescription(filename) {
-            return `Description for ${filename}`;
+        async fetchTags() {
+            try {
+                const response = await fetch("http://localhost:3000/getTags");
+                if (response.ok) {
+                    const data = await response.json();
+                    this.tags = data.tags.map(tagString => tagString.split(',').map(tag => tag.trim()));
+                } else {
+                    console.error("Failed to fetch tags.");
+                }
+            } catch (error) {
+                console.error("Error fetching tags:", error);
+            }
         },
-        goToImagePage(filename) {
-            this.$router.push(`/details/${filename}`);
-        },
+
         getImageTags(filename) {
-            return 'Tag1, Tag2, Tag3'; // Example tags
+            const tagsForImage = this.tags[filename]; // You need to map filenames to their corresponding tags
+            return tagsForImage || [];
         },
+        async filterImagesByTag() {
+            if (this.selectedTag === "") {
+                // If no tag is selected, show all images
+                await this.performSearch();
+            } else {
+                // Filter images by selected tag
+                const response = await fetch("http://localhost:3000/getByTags?tags=" + this.selectedTag);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.imageFilenames = data.images;
+                } else {
+                    console.error("Failed to fetch images by tag.");
+                }
+            }
+        },
+        clearSearch() {
+            this.searchQuery = "";
+            this.selectedTag = [];
+            this.performSearch();
+        }
+
+
     },
+    created() {
+        this.fetchTags();
+        console.log(this.tags)
+    }
 };
 </script>
 

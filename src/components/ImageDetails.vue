@@ -5,11 +5,12 @@
             <img :src="imageSrc" :alt="imageDetails.title" />
         </div>
         <div class="image-info">
-            <h2>Subiect: {{ imageDetails.title }}</h2>
-            <p>{{ imageDetails.description }}</p>
+            <h2>Title: {{ imageDetails.title }}</h2>
+            <p>Description: {{ imageDetails.description }}</p>
+            <p>Tags: {{ imageDetails.tags.join(", ") }}</p>
             <button @click="deleteImage">Delete Image</button>
             <button @click="duplicateImage">Duplicate Image</button>
-
+            <button @click="editImage">Edit Details</button>
         </div>
     </div>
 </template>
@@ -93,6 +94,9 @@ export default {
                 console.error("Error duplicating image:", error);
             }
         },
+        editImage() {
+            this.$router.push(`/edit/${this.$route.params.filename}`);
+        }
     },
 
     created() {

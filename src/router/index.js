@@ -4,6 +4,7 @@ import UploadPicture from "../components/UploadPicture.vue";
 import ImageDetails from "@/components/ImageDetails.vue";
 import Register from "@/components/Register.vue";
 import LogIn from "@/components/LogIn.vue";
+import EditDetails from "@/components/EditDetails.vue";
 
 const routes = [
     {
@@ -30,6 +31,11 @@ const routes = [
         path: "/login",
         name: "Login",
         component: LogIn,
+    },
+    {
+        path:"/edit/:filename",
+        name:"Edit",
+        component: EditDetails,
     }
 ];
 
