@@ -33,8 +33,8 @@ const routes = [
         component: LogIn,
     },
     {
-        path:"/edit/:filename",
-        name:"Edit",
+        path: "/edit/:filename",
+        name: "Edit",
         component: EditDetails,
     }
 ];
@@ -43,13 +43,21 @@ const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes,
 });
+
+
 router.beforeEach((to, from, next) => {
-    if (to.name === 'Upload' && !localStorage.getItem('token')) next({name: 'Login'})
+    if (to.name === 'Upload' && !localStorage.getItem('token') ||
+        to.name === "Edit" && !localStorage.getItem('token')
+    )
+        next({name: 'Login'})
     else next()
 })
 
 router.beforeEach((to, from, next) => {
-    if (to.name === 'Register' || to.name === 'Login' && localStorage.getItem('token')) next({name: 'Home'})
+    if (to.name === 'Register' && localStorage.getItem('token') ||
+        to.name === 'Login' && localStorage.getItem('token')
+    ) next({name: 'Home'})
     else next()
 })
+
 export default router;
