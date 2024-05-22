@@ -71,7 +71,7 @@ export default defineComponent({
             tags.value = value;
         };
 
-        const fetchWithRetry = async (url, options, maxRetries = 5) => {
+        const fetchWithRetry = async (url, options, maxRetries = 10) => {
             let retries = 0;
             let response;
             while (retries < maxRetries) {

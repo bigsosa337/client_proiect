@@ -1,6 +1,6 @@
 <template>
     <div>
-        <Menubar :model="items" class="header">
+        <Menubar :model="items" class="header" v-if="isAuth" >
             <template #start>
                 <img src="/logo.png" alt="Logo" class="header-logo" />
             </template>
@@ -31,6 +31,7 @@ export default {
                     command: () => {
                         this.goHome();
                     },
+                    visible: this.isAuth,
                     class: route.path === '/' ? 'active' : ''
                 },
                 {
@@ -94,8 +95,8 @@ export default {
         },
         logOut() {
             localStorage.removeItem('token');
+            this.$router.push('/login');
             this.$store.dispatch("logout");
-            this.$router.push('/');
         }
     }
 };

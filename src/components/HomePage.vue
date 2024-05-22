@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import debounce from 'lodash/debounce';
 import InputText from 'primevue/inputtext';
@@ -55,6 +55,7 @@ export default {
         const selectedTags = ref([]);
         const sharedAlbums = ref([]);
         const currentAlbum = ref('my');
+        const placeholderFilenames = ref([]);
 
         const fetchImageFilenames = async () => {
             try {
@@ -66,7 +67,8 @@ export default {
                     }
                 });
                 const data = await response.json();
-                imageFilenames.value = data.images;
+                imageFilenames.value.push(...data.images);
+                placeholderFilenames.value.push(...data.images);
             } catch (error) {
                 console.error('Error fetching image filenames:', error);
             }
@@ -99,6 +101,7 @@ export default {
 
         const performSearch = async () => {
             try {
+                console.log(imageFilenames.value);
                 const token = localStorage.getItem('token');
                 if (searchQuery.value.length >= 3) {
                     const endpoint = currentAlbum.value === 'my' ? 'searchImages' : `searchSharedImages/${currentAlbum.value}`;
@@ -108,7 +111,8 @@ export default {
                         }
                     });
                     const data = await response.json();
-                    imageFilenames.value = data.images;
+                    imageFilenames.value = []; // Clear existing filenames
+                    imageFilenames.value.push(...data.images);
                 } else {
                     await fetchImageFilenames();
                 }
@@ -132,8 +136,7 @@ export default {
                     });
                     if (response.ok) {
                         const data = await response.json();
-                        const uniqueFilenames = [...new Set(data.images)];
-                        imageFilenames.value = uniqueFilenames;
+                        imageFilenames.value = [...new Set(data.images)];
                     } else {
                         console.error('Failed to fetch images by tag.');
                     }
@@ -146,7 +149,8 @@ export default {
         const clearSearch = () => {
             searchQuery.value = '';
             selectedTags.value = [];
-            performSearch();
+            imageFilenames.value = [];
+            fetchImageFilenames();
         };
 
         const debouncedSearch = debounce(performSearch, 300);
@@ -316,8 +320,14 @@ export default {
 
 .image {
     width: 100%;
-    height: auto;
+    height: 0;
+    padding-bottom: 100%; /* This makes the image a square */
     object-fit: cover;
     border-radius: 4px;
+    transition: transform 0.2s;
+}
+
+.image:hover {
+    transform: scale(1.05); /* Slight zoom on hover */
 }
 </style>
