@@ -2,140 +2,249 @@
     <div class="form">
         <h1>Upload Image</h1>
         <div class="header">
-            <img class="imgPreview" v-if="this.imageSrc" :src="imageSrc" alt="Image Preview">
-            <br>
-            <button @click="autoGenTags" class="autoGen" v-if="this.imageSrc">Auto Tag</button>
+            <div  v-if="!imageSrc" class="dropzone">
+                <input type="file" @change="onFileChange" />
+                <div class="drag-area">
+                    <p>Click to select files</p>
+                </div>
+            </div>
+            <div v-if="imageSrc" class="image-container">
+                <img class="imgPreview" :src="imageSrc" alt="Image Preview" />
+            </div>
         </div>
-        <form @submit.prevent="submitForm">
-            <div class="field">
-                <label for="image">Select an image file:</label>
-                <input type="file" id="image" name="image" accept="image/*" @change="onFileChange" required/>
+        <form v-if="imageSrc" @submit.prevent="submitForm">
+            <div class="icon-container">
+                <i class="pi pi-tag auto-tag-icon" @click="autoTagImage"></i>
+                <i class="pi pi-times-circle clear-icon" @click="clearSelection"></i>
             </div>
             <div class="field">
-                <label for="title">Enter a title for the image:</label>
-                <input type="text" id="title" name="title" v-model="title"/>
-            </div>
-            <div class="field">
-                <label for="description">Enter a description for the image:</label>
-                <textarea id="description" name="description" v-model="description"></textarea>
+                <label for="info">Enter info for the image:</label>
+                <InputText id="info" name="info" v-model="title" />
             </div>
             <div class="field">
                 <label for="tags">Enter some tags for the image (separated by commas):</label>
-                <input type="text" id="tags" name="tags" v-model="tags"/>
+                <InputText id="tags" name="tags" v-model="tags" />
             </div>
             <div class="field">
-                <button type="submit">Upload</button>
+                <Button type="submit" label="Upload" class="uploadButton" />
             </div>
         </form>
-    </div>
-    <div v-if="loading" class="loading-overlay">
-        <div class="loader"></div>
+        <div v-if="loading || tagLoading" class="loading-overlay">
+            <div class="loader"></div>
+        </div>
     </div>
 </template>
-`
+
 <script>
+import { ref, defineComponent } from 'vue';
+import { useRouter } from 'vue-router';
+import InputText from 'primevue/inputtext';
+import Button from 'primevue/button';
 
-export default {
-    data() {
-        return {
-            image: null,
-            title: "",
-            description: "",
-            tags: "",
-            imageSrc: null,
-            loading: false,
-        };
+export default defineComponent({
+    components: {
+        InputText,
+        Button
     },
-    methods: {
-        async autoGenTags() {
-            let autoTags = [];
-            const res = await this.query();
-            console.log(res);
-            for (let key in res) {
-                autoTags.push(res[key].label.split(",")[0]);
+    setup() {
+        const image = ref(null);
+        const title = ref('');
+        const tags = ref('');
+        const imageSrc = ref(null);
+        const loading = ref(false);
+        const tagLoading = ref(false);
+        const router = useRouter();
+
+        const setImageSrc = (src) => {
+            imageSrc.value = src;
+        };
+
+        const setImage = (file) => {
+            image.value = file;
+        };
+
+        const setTitle = (value) => {
+            title.value = value;
+        };
+
+        const setTags = (value) => {
+            tags.value = value;
+        };
+
+        const fetchWithRetry = async (url, options, maxRetries = 5) => {
+            let retries = 0;
+            let response;
+            while (retries < maxRetries) {
+                response = await fetch(url, options);
+                if (response.status === 503) {
+                    retries += 1;
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                } else {
+                    return response;
+                }
             }
-            this.tags = autoTags.join(", ");
+            return response;
+        };
 
+        const autoGenTags = async (imageSrc) => {
+            if (!imageSrc) {
+                throw new Error('No image source provided.');
+            }
 
-        },
-        async query() {
-            const response = await fetch(
-                "https://api-inference.huggingface.co/models/microsoft/resnet-50",
+            try {
+                const response = await fetchWithRetry(
+                    'https://api-inference.huggingface.co/models/microsoft/resnet-50',
+                    {
+                        headers: { Authorization: 'Bearer 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' },
+                        method: 'POST',
+                        body: await urlToBlob(imageSrc),
+                    }
+                );
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch auto-tags.');
+                }
+
+                return data.map((tag) => tag.label.split(',')[0]).join(', ');
+            } catch (error) {
+                throw new Error('Failed to generate auto-tags.');
+            }
+        };
+
+        const analyzeImage = async (imageSrc) => {
+            if (!imageSrc) {
+                throw new Error('No image source provided.');
+            }
+
+            const response = await fetchWithRetry(
+                'https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large',
                 {
-                    headers: {Authorization: "Bearer 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"},
-                    method: "POST",
-                    body: this.image,
+                    headers: { Authorization: 'Bearer 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' },
+                    method: 'POST',
+                    body: await urlToBlob(imageSrc),
                 }
             );
             const result = await response.json();
-            return result;
-        },
-        onFileChange(e) {
-            this.image = e.target.files[0];
+            return result[0].generated_text;
+        };
 
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-
-                reader.onloadend = async () => {
-                    this.imageSrc = reader.result;
-                    resolve(reader.result);
-                };
-
-                reader.onerror = reject;
-
-                if (this.image) {
-                    reader.readAsDataURL(this.image);
+        const findFaces = async (imageSrc) => {
+            const response = await fetchWithRetry(
+                'https://api-inference.huggingface.co/models/facebook/detr-resnet-50',
+                {
+                    headers: { Authorization: 'Bearer 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' },
+                    method: 'POST',
+                    body: await urlToBlob(imageSrc),
                 }
-            })
-        },
-        async submitForm() {
+            );
+            const result = await response.json();
+            return result.map((tag) => tag.label.split(',')[0]).join(', ');
+        };
+
+        const urlToBlob = (url) => {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.onerror = reject;
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState === 4) {
+                        resolve(xhr.response);
+                    }
+                };
+                xhr.open('GET', url);
+                xhr.responseType = 'blob';
+                xhr.send();
+            });
+        };
+
+        const onFileChange = (e) => {
+            const file = e.target.files[0];
+            setImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImageSrc(reader.result);
+            };
+            reader.readAsDataURL(file);
+        };
+
+        const autoTagImage = async () => {
+            if (!imageSrc.value) {
+                alert('No image selected. Please select an image first.');
+                return;
+            }
+
+            tagLoading.value = true;
+
             try {
-                this.loading = true;
+                const autoTags = await autoGenTags(imageSrc.value);
+                const imgDescription = await analyzeImage(imageSrc.value);
+                const objects = await findFaces(imageSrc.value);
+                console.log('Object Analysis Success: ', objects);
+                console.log('Tags Analysis Success: ', autoTags);
+                console.log('Image Analysis Success: ', imgDescription);
+                setTags(autoTags);
+                setTitle(imgDescription);
+            } catch (error) {
+                console.error('Error auto-tagging:', error);
+                alert('Error: Failed to generate auto-tags.');
+            } finally {
+                tagLoading.value = false;
+            }
+        };
 
+        const clearSelection = () => {
+            setImage(null);
+            setImageSrc(null);
+            setTitle('');
+            setTags('');
+        };
+
+        const submitForm = async () => {
+            try {
+                loading.value = true;
                 const formData = new FormData();
-                formData.append("image", this.image);
-                formData.append("title", this.title);
-                formData.append("description", this.description);
-                formData.append("tags", this.tags.split(",").map(tag => tag.trim()));
+                formData.append('image', image.value);
+                formData.append('title', title.value);
+                formData.append('tags', tags.value.split(',').map((tag) => tag.trim()));
 
-
-                const response = await fetch("http://localhost:3000/uploadImage", {
-                    method: "POST",
+                const response = await fetch('http://localhost:3000/uploadImage', {
+                    method: 'POST',
                     body: formData,
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
                     },
                 });
 
                 if (response.ok) {
-                    // alert("Image uploaded successfully.");
-                    this.image = null;
-                    this.title = "";
-                    this.description = "";
-                    this.tags = "";
-                    this.loading = false;
-                    this.$router.push('/');
+                    clearSelection();
+                    loading.value = false;
+                    router.push('/');
                 } else {
-                    if (response.status !== 204) { // Check if the status is not 204 No Content
-                        const error = await response.json();
-                        alert(error.message || "Something went wrong.");
-                        this.loading = false;
-
-                    } else {
-                        alert("Something went wrong.");
-
-                    }
+                    const error = await response.json();
+                    alert(error.message || 'Something went wrong.');
+                    loading.value = false;
                 }
             } catch (error) {
-                console.error("Error uploading image:", error);
-                alert("Something went wrong.");
-
+                console.error('Error uploading image:', error);
+                alert('Something went wrong.');
+                loading.value = false;
             }
-            this.loading = false;
+        };
 
-        },
+        return {
+            image,
+            title,
+            tags,
+            imageSrc,
+            loading,
+            tagLoading,
+            onFileChange,
+            autoTagImage,
+            clearSelection,
+            submitForm,
+        };
     },
-};
+});
 </script>
 
 <style scoped>
@@ -147,16 +256,64 @@ export default {
     border-radius: 5px;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
+.dropzone {
+    width: 100%;
+    height: 200px;
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    text-align: center;
+}
+
+.drag-area {
+    font-size: 16px;
+    color: #777;
+}
+
+.image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }
 
 .imgPreview {
-    max-width: 600px;
+    max-width: 100%;
     margin-bottom: 20px;
+    position: relative;
 }
 
-.autoGen {
-    margin: 20px;
+.icon-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.auto-tag-icon,
+.clear-icon {
+    font-size: 24px;
+    cursor: pointer;
+    background: white;
+    border-radius: 50%;
+    padding: 5px;
+    color: orange;
+}
+
+.uploadButton {
+    color: orange;
+    border: 2px solid orange;
+    background-color: transparent;
+    margin: 10px 0;
+}
+
+.uploadButton:hover {
+    background-color: orange;
+    color: white;
 }
 
 .header {
@@ -174,37 +331,14 @@ h1 {
 
 .field {
     margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
 }
 
 label {
-    display: block;
     font-weight: bold;
     margin-bottom: 5px;
     color: #282828;
-}
-
-input[type="text"],
-input[type="file"],
-textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 16px;
-}
-
-button {
-    background-color: #007BFF;
-    color: #fff;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    font-size: 18px;
-    cursor: pointer;
-}
-
-button:hover {
-    background-color: #0056b3;
 }
 
 .loading-overlay {
@@ -213,21 +347,20 @@ button:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 999; /* Ensure it's on top of other content */
+    z-index: 999;
 }
 
-/* Loader styles (you can customize this) */
 .loader {
-    border: 4px solid #f3f3f3; /* Light grey border */
-    border-top: 4px solid #3498db; /* Blue border */
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
     border-radius: 50%;
     width: 40px;
     height: 40px;
-    animation: spin 2s linear infinite; /* Rotate animation */
+    animation: spin 2s linear infinite;
 }
 
 @keyframes spin {
@@ -238,5 +371,4 @@ button:hover {
         transform: rotate(360deg);
     }
 }
-
 </style>

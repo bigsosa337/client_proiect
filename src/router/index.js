@@ -5,6 +5,7 @@ import ImageDetails from "@/components/ImageDetails.vue";
 import Register from "@/components/Register.vue";
 import LogIn from "@/components/LogIn.vue";
 import EditDetails from "@/components/EditDetails.vue";
+import ProfilePage from "@/components/ProfilePage.vue";
 
 const routes = [
     {
@@ -36,7 +37,12 @@ const routes = [
         path: "/edit/:filename",
         name: "Edit",
         component: EditDetails,
-    }
+    },
+    {
+        path: '/profile',
+        name: 'Profile',
+        component: ProfilePage
+    },
 ];
 
 const router = createRouter({

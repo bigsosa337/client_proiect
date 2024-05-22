@@ -128,9 +128,13 @@ export default {
         },
         async fetchImageInfo(filename) {
             try {
-                // debugger
+                const token = localStorage.getItem('token'); // Retrieve the JWT token from localStorage
 
-                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}`);
+                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}` // Include the Authorization header
+                    }
+                });
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);

@@ -1,31 +1,90 @@
 <template>
     <div>
-        <header class="header">
-            <h1 class="header-title">Image Gallery</h1>
-            <div class="nav-buttons">
-                <button @click="goHome()" class="nav-button">Home</button>
-                <button @click="goToUpload()" v-if="isAuth" class="nav-button">Upload</button>
-                <button @click="goToRegister()" v-if="!isAuth" class="nav-button">Register</button>
-                <button @click="goToLogin()" v-if="!isAuth" class="nav-button">Log In</button>
-                <button @click="logOut()" v-if="isAuth" class="nav-button">Log Out</button>
-            </div>
-        </header>
+        <Menubar :model="items" class="header">
+            <template #start>
+                <img src="/logo.png" alt="Logo" class="header-logo" />
+            </template>
+        </Menubar>
         <div class="content">
             <router-view></router-view>
         </div>
     </div>
 </template>
 
-
-
 <script>
+import { mapState } from 'vuex';
+import Menubar from 'primevue/menubar';
+
 export default {
+    components: {
+        Menubar
+    },
+    computed: {
+        ...mapState({
+            isAuth: state => state.isAuthenticated
+        }),
+        items() {
+            const route = this.$route;
+            return [
+                {
+                    label: 'Home',
+                    command: () => {
+                        this.goHome();
+                    },
+                    class: route.path === '/' ? 'active' : ''
+                },
+                {
+                    label: 'Upload',
+                    command: () => {
+                        this.goToUpload();
+                    },
+                    visible: this.isAuth,
+                    class: route.path === '/upload' ? 'active' : ''
+                },
+                {
+                    label: 'Profile',
+                    command: () => {
+                        this.goToProfile();
+                    },
+                    visible: this.isAuth,
+                    class: route.path === '/profile' ? 'active' : ''
+                },
+                {
+                    label: 'Register',
+                    command: () => {
+                        this.goToRegister();
+                    },
+                    visible: !this.isAuth,
+                    class: route.path === '/register' ? 'active' : ''
+                },
+                {
+                    label: 'Log In',
+                    command: () => {
+                        this.goToLogin();
+                    },
+                    visible: !this.isAuth,
+                    class: route.path === '/login' ? 'active' : ''
+                },
+                {
+                    label: 'Log Out',
+                    command: () => {
+                        this.logOut();
+                    },
+                    visible: this.isAuth,
+                    class: 'logout-button'
+                }
+            ];
+        }
+    },
     methods: {
         goHome() {
             this.$router.push('/');
         },
         goToUpload() {
             this.$router.push('/upload');
+        },
+        goToProfile() {
+            this.$router.push('/profile');
         },
         goToRegister() {
             this.$router.push('/register');
@@ -35,70 +94,77 @@ export default {
         },
         logOut() {
             localStorage.removeItem('token');
-            this.$store.commit("SET_AUTH", false);
+            this.$store.dispatch("logout");
             this.$router.push('/');
         }
-    },
-    computed: {
-        isAuth() {
-            return this.$store.state.isAuthenticated;
-        }
     }
-}
-
-
+};
 </script>
 
 <style scoped>
-/* Style for the header */
 .header {
-    background-color: #007BFF;
-    color: #fff;
-    padding: 10px 0;
+    background-color: #fff;
+    color: #000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 0 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-radius: 3px;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-.header-title {
-    margin: 0;
-    font-size: 24px;
-    padding-left: 20px;
-    font-family: "Bauhaus 93";
-
+.header-logo {
+    padding: 5px 20px 2px 10px;
+    height:5vh;
+    margin-top:3px;
 }
-
-.nav-buttons {
-    display: flex;
-    gap: 10px;
-    padding-right: 20px;
-
-}
-
-.nav-button {
-    background-color: #0056b3;
-    color: #fff;
-    padding: 5px 10px;
+.p-menubar {
+    background-color: #fff;
     border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
+    padding: 0;
+}
+
+.p-menubar .p-menubar-root-list {
+    display: flex;
+    align-items: center;
+    height: 70px;
+}
+
+.p-menubar .p-menubar-root-list > .p-menubaritem > .p-menuitem-link {
+    color: #333;
     font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    padding: 0 15px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    transition: border-bottom 0.3s;
 }
 
-.nav-button:hover {
-    background-color: #003f80;
+
+.p-menubar .p-menubar-root-list > .p-menubaritem > .p-menuitem-link:focus {
+    box-shadow: none;
 }
 
-/* Style for the content area */
+.p-menubar .p-menubar-root-list > .p-menubaritem.logout-button > .p-menuitem-link {
+    border: 1px solid #000;
+    padding: 8px 15px;
+    border-radius: 5px;
+}
+
+.p-menubar .p-menubar-root-list > .p-menubaritem.logout-button > .p-menuitem-link:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.p-menubar .p-menubar-root-list > .p-menubaritem > .p-menuitem-link .pi {
+    margin-right: 0.5rem;
+}
+
 .content {
     margin-top: 20px;
     padding: 20px;
-    /*border: 1px solid #ccc;*/
     border-radius: 5px;
-    /*background-color: #fff;*/
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /*background-color: #ffffff;*/
 }
-
 </style>

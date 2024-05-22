@@ -1,235 +1,323 @@
 <template>
     <div class="image-list">
+        <div class="album-selection">
+            <Button label="My Album" @click="loadMyAlbum" :class="['album-button', { 'selected-album': currentAlbum === 'my' }]" />
+            <Button
+                v-for="(album, index) in sharedAlbums"
+                :key="index"
+                :label="`Shared Album - ${album.email}`"
+                @click="loadSharedAlbum(album.userId)"
+                :class="['album-button', { 'selected-album': currentAlbum === album.userId }]"
+            />
+        </div>
         <div class="search-bar">
-            <input type="text" v-model="searchQuery" @input="performSearch" placeholder="Search...">
-            <select v-model="searchOption" @change="performSearch">
-                <option value="title">Title</option>
-                <option value="description">Description</option>
-            </select>
-            <label for="tagDropdown">Select Tags: <br> (CTRL for multiple)</label>
-            <select id="tagDropdown" v-model="selectedTag" :multiple="true" @change="filterImagesByTag">
-                <option v-for="(tagArray, tagIndex) in tags" :key="tagIndex" :value="tagArray.join(', ')">
-                    {{ tagArray.join(', ') }}
-                </option>
-            </select>
-            <button @click="clearSearch">Clear Search</button>
+            <InputText v-model="searchQuery" @input="debouncedSearch" placeholder="Search..." class="input-element" />
+            <MultiSelect
+                v-model="selectedTags"
+                :options="tags"
+                optionLabel="name"
+                class="input-element multiselect"
+                placeholder="Select tags"
+                @change="filterImagesByTag"
+            />
+            <Button label="Clear Search" icon="pi pi-times" iconPos="left" @click="clearSearch" class="input-element clear-button" />
         </div>
 
         <div class="row">
-            <div
-                    v-for="(filename, index) in imageFilenames"
-                    :key="index"
-                    class="col-3 image-item"
-                    id="imageItem"
-            >
-                <img :src="getImageUrl(filename)" alt="Image" @click="goToImage(filename)"/>
-                <div class="imageDiv">
-                    <p class="fileName" >{{ getImageTitle(filename) }}</p>
-                </div>
+            <div class="col-3" v-for="(filename, index) in imageFilenames" :key="index">
+                <ImageItem :filename="filename" @clickImage="goToImage" />
             </div>
         </div>
     </div>
 </template>
 
 <script>
-export default {
-    data() {
-        return {
-            placeholder: [],
-            imageFilenames: [],
-            searchQuery: "",
-            searchOption: "title",
-            tags: [],
-            selectedTag: [],
-        };
-    },
-    mounted() {
-        this.fetchImageFilenames();
-    },
-    methods: {
-        async fetchImageFilenames() {
-            try {
-                // Make an HTTP request to your server to fetch the list of image filenames
-                const response = await fetch('http://localhost:3000/listImages');
-                const data = await response.json();
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import debounce from 'lodash/debounce';
+import InputText from 'primevue/inputtext';
+import MultiSelect from 'primevue/multiselect';
+import Button from 'primevue/button';
+import ImageItem from './ImageItem.vue';
 
-                // Update data property with the list of filenames
-                this.imageFilenames = data.images;
+export default {
+    components: {
+        InputText,
+        MultiSelect,
+        Button,
+        ImageItem
+    },
+    setup() {
+        const router = useRouter();
+        const searchQuery = ref('');
+        const imageFilenames = ref([]);
+        const tags = ref([]);
+        const selectedTags = ref([]);
+        const sharedAlbums = ref([]);
+        const currentAlbum = ref('my');
+
+        const fetchImageFilenames = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const endpoint = currentAlbum.value === 'my' ? 'listImages' : `listSharedImages/${currentAlbum.value}`;
+                const response = await fetch(`http://localhost:3000/${endpoint}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                imageFilenames.value = data.images;
             } catch (error) {
                 console.error('Error fetching image filenames:', error);
             }
-        },
-        getImageUrl(filename) {
-            return `http://localhost:3000/getImageData/${filename}`;
-        },
-        getImageTitle(filename) {
-            return `${filename}`;
-        },
-        goToImage(filename) {
-            this.$router.push(`/details/${filename}`);
-        },
-        async performSearch() {
+        };
+
+        const fetchTags = async () => {
             try {
-                if (this.searchQuery.length >= 3) {
-                    const response = await fetch(`http://localhost:3000/searchImages?query=${this.searchQuery}&option=${this.searchOption}`);
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://localhost:3000/getTags', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.ok) {
                     const data = await response.json();
-
-                    this.imageFilenames = data.images;
-
+                    tags.value = data.tags.map(tagString => ({
+                        name: tagString.split(',').map(tag => tag.trim()).join(', ')
+                    }));
                 } else {
-                    await this.fetchImageFilenames();
+                    console.error('Failed to fetch tags.');
+                }
+            } catch (error) {
+                console.error('Error fetching tags:', error);
+            }
+        };
+
+        const goToImage = (filename) => {
+            router.push(`/details/${filename}`);
+        };
+
+        const performSearch = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (searchQuery.value.length >= 3) {
+                    const endpoint = currentAlbum.value === 'my' ? 'searchImages' : `searchSharedImages/${currentAlbum.value}`;
+                    const response = await fetch(`http://localhost:3000/${endpoint}?query=${searchQuery.value}&option=title`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    const data = await response.json();
+                    imageFilenames.value = data.images;
+                } else {
+                    await fetchImageFilenames();
                 }
             } catch (error) {
                 console.error('Error performing search:', error);
             }
-        },
-        async fetchTags() {
+        };
+
+        const filterImagesByTag = async () => {
             try {
-                const response = await fetch("http://localhost:3000/getTags");
-                if (response.ok) {
-                    const data = await response.json();
-                    this.tags = data.tags.map(tagString => tagString.split(',').map(tag => tag.trim()));
+                const token = localStorage.getItem('token');
+                if (selectedTags.value.length === 0) {
+                    await fetchImageFilenames();
                 } else {
-                    console.error("Failed to fetch tags.");
+                    const tagsString = selectedTags.value.map(tag => tag.name).join(',');
+                    const endpoint = currentAlbum.value === 'my' ? 'getByTags' : `getSharedByTags/${currentAlbum.value}`;
+                    const response = await fetch(`http://localhost:3000/${endpoint}?tags=${tagsString}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        const uniqueFilenames = [...new Set(data.images)];
+                        imageFilenames.value = uniqueFilenames;
+                    } else {
+                        console.error('Failed to fetch images by tag.');
+                    }
                 }
             } catch (error) {
-                console.error("Error fetching tags:", error);
+                console.error('Error fetching images by tag:', error);
             }
-        },
-        async filterImagesByTag() {
-            if (this.selectedTag === "") {
-                // If no tag is selected, show all images
-                await this.performSearch();
-            } else {
-                // Filter images by selected tag
-                const response = await fetch("http://localhost:3000/getByTags?tags=" + this.selectedTag);
-                if (response.ok) {
-                    const data = await response.json();
-                    this.imageFilenames = data.images;
-                } else {
-                    console.error("Failed to fetch images by tag.");
+        };
+
+        const clearSearch = () => {
+            searchQuery.value = '';
+            selectedTags.value = [];
+            performSearch();
+        };
+
+        const debouncedSearch = debounce(performSearch, 300);
+
+        const loadMyAlbum = () => {
+            currentAlbum.value = 'my';
+            imageFilenames.value = []; // Clear existing images
+            fetchImageFilenames();
+        };
+
+        const loadSharedAlbum = (userId) => {
+            currentAlbum.value = userId;
+            imageFilenames.value = []; // Clear existing images
+            fetchImageFilenames();
+        };
+
+        onMounted(() => {
+            fetchImageFilenames();
+            fetchTags();
+
+            const fetchSharedAlbums = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch('http://localhost:3000/getSharedAlbums', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        sharedAlbums.value = data.sharedAlbums;
+                    } else {
+                        console.error('Failed to fetch shared albums.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching shared albums:', error);
                 }
-            }
-        },
-        clearSearch() {
-            this.searchQuery = "";
-            this.selectedTag = [];
-            this.performSearch();
-        }
-    },
-    created() {
-        // Fetch tags when component is created
-        this.fetchTags();
+            };
+
+            fetchSharedAlbums();
+        });
+
+        return {
+            searchQuery,
+            imageFilenames,
+            tags,
+            selectedTags,
+            goToImage,
+            performSearch,
+            filterImagesByTag,
+            clearSearch,
+            debouncedSearch,
+            loadMyAlbum,
+            loadSharedAlbum,
+            sharedAlbums,
+            currentAlbum
+        };
     }
 };
 </script>
 
 <style scoped>
-/* Add your component-specific styles here */
-
 .image-list {
     padding: 20px;
 }
+
 .fileName {
     hyphens: auto;
     max-width: 200px;
     overflow-wrap: break-word;
+}
 
+.album-selection {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.album-button {
+    color: orange;
+    border: 2px solid orange;
+    background-color: transparent;
+}
+
+.selected-album {
+    background-color: orange;
+    color: white;
 }
 
 .search-bar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
 }
 
-input[type="text"] {
-    padding: 8px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    flex: 1;
+.input-element {
+    height: 40px;
+    display: flex;
+    align-items: center;
 }
 
-select {
-    padding: 8px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.p-multiselect, .p-inputtext, .p-button {
+    height: 40px;
 }
 
-button {
-    padding: 8px 16px;
-    background-color: #007BFF;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Poppins', sans-serif;
+.multiselect {
+    flex: 2;
 }
 
-button:hover {
-    background-color: #0056b3;
+.button {
+    flex: 0 0 auto;
+}
+
+.clear-button {
+    color: orange;
+    border: 2px solid orange;
+    background-color: rgb(0,0,0,0);
+}
+
+.p-button-icon-left .p-button-label {
+    margin-left: 0.5rem; /* Adjust the space between the icon and the label */
 }
 
 .row {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
+    gap: 10px;
 }
 
 .col-3 {
-    width: calc(25% - 10px);
-    margin-bottom: 20px;
+    flex: 1 1 calc(25% - 10px);
+    display: flex;
+    justify-content: center;
 }
 
-.image-item {
+@media (max-width: 900px) {
+    .col-3 {
+        flex: 1 1 calc(50% - 10px);
+    }
+}
+
+@media (max-width: 600px) {
+    .col-3 {
+        flex: 1 1 calc(100% - 10px);
+    }
+}
+
+.image-card {
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    /*border: 1px solid black;*/
-    box-shadow: 0 3px 10px rgb(0 0 0 / 0.6);
-    padding: 20px;
-    border-radius: 4px;
-    transition-duration: 0.2s;
-}
-
-.image-item:hover {
-    /*background-color: #f1f1f1;*/
-    color: whitesmoke;
+    padding: 0;
     cursor: pointer;
-    background-color: #282828FF;
-    transition-duration: 0.2s;
+    border: none;
+    box-shadow: none;
+    transition: background-color 0.2s;
 }
 
-.image-item img {
-    max-height: 200px;
-    aspect-ratio: 1/1;
-
+.image-card:hover {
+    background-color: #f0f0f0;
+    color: #333;
 }
 
-.imageDiv {
-    text-align: center;
-    margin-top: 10px;
+.image {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 4px;
 }
-
-/* Media Query for smaller screens */
-@media (max-width: 900px) {
-    .col-3 {
-        width: calc(50% - 10px);
-        justify-content: space-between;
-
-    }
-
-}
-
-/* Media Query for even smaller screens */
-@media (max-width: 480px) {
-    .col-3 {
-        width: 100%;
-    }
-}
-
 </style>
