@@ -23,6 +23,15 @@
             <Button label="Clear Search" icon="pi pi-times" iconPos="left" @click="clearSearch" class="input-element clear-button" />
         </div>
 
+        <div v-if="faces.length" class="face-carousel">
+            <Carousel :value="faces" :numVisible="3" :numScroll="1">
+                <template #item="slotProps">
+                    <div class="carousel-item">
+                        <img :src="'data:image/jpeg;base64,' + slotProps.data.thumbnail" alt="Detected Face" class="face-thumbnail" />
+                    </div>
+                </template>
+            </Carousel>
+        </div>
         <div class="row">
             <div class="col-3" v-for="(filename, index) in imageFilenames" :key="index">
                 <ImageItem :filename="filename" @clickImage="goToImage" />
@@ -39,13 +48,16 @@ import InputText from 'primevue/inputtext';
 import MultiSelect from 'primevue/multiselect';
 import Button from 'primevue/button';
 import ImageItem from './ImageItem.vue';
+import {map} from "lodash";
+import Carousel from 'primevue/carousel';
 
 export default {
     components: {
         InputText,
         MultiSelect,
         Button,
-        ImageItem
+        ImageItem,
+        Carousel
     },
     setup() {
         const router = useRouter();
@@ -55,8 +67,19 @@ export default {
         const selectedTags = ref([]);
         const sharedAlbums = ref([]);
         const currentAlbum = ref('my');
+        const faces = ref([]);
         const placeholderFilenames = ref([]);
+        const facelist = ref([]);
 
+        const printFaces = () => {
+            console.log(faces, 'faces');
+            console.log(faces.value, 'faces.value');
+            console.log(faces.value.length, 'faces.value.length');
+            console.log(faces.length, 'faces.length');
+            // console.log(faces._rawValue.length , 'faces._rawValue.length');
+            // console.log(faces._rawValue , 'faces._rawValue');
+            // console.log(JSON.stringify(faces), 'faces');
+        };
         const fetchImageFilenames = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -73,7 +96,22 @@ export default {
                 console.error('Error fetching image filenames:', error);
             }
         };
-
+        const fetchFaces = async () => {
+            const response = await fetch(`http://localhost:3000/getFaces`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                faces.value = map(data.faces, face => ({
+                    thumbnail: face.thumbnail,
+                    filename: face.filename
+                }));
+            } else {
+                console.error('Failed to fetch faces.');
+            }
+        };
         const fetchTags = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -167,9 +205,38 @@ export default {
             fetchImageFilenames();
         };
 
+        const getFaceThumbnail = (face) => {
+            // Assuming you have a way to generate thumbnails for the detected faces
+            return `data:image/jpeg;base64,${face.thumbnail}`;
+        };
+
+        const searchByFace = async (face) => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:3000/searchByFace`, {
+                    method: 'POST',
+                    body: JSON.stringify({ descriptor: face.descriptor }),
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log(data, 'This is the data from the search by face');
+                    imageFilenames.value = data.images;
+                } else {
+                    console.error('Failed to search by face.');
+                }
+            } catch (error) {
+                console.error('Error searching by face:', error);
+            }
+        };
+
         onMounted(() => {
             fetchImageFilenames();
             fetchTags();
+            fetchFaces();
 
             const fetchSharedAlbums = async () => {
                 try {
@@ -193,10 +260,28 @@ export default {
             fetchSharedAlbums();
         });
 
+        const prevSlide = () => {
+            const carouselSlide = document.querySelector('.carousel-slide');
+            carouselSlide.scrollBy({
+                left: -carouselSlide.clientWidth,
+                behavior: 'smooth'
+            });
+        };
+
+        const nextSlide = () => {
+            const carouselSlide = document.querySelector('.carousel-slide');
+            carouselSlide.scrollBy({
+                left: carouselSlide.clientWidth,
+                behavior: 'smooth'
+            });
+        };
+
         return {
             searchQuery,
             imageFilenames,
             tags,
+            prevSlide,
+            nextSlide,
             selectedTags,
             goToImage,
             performSearch,
@@ -206,7 +291,12 @@ export default {
             loadMyAlbum,
             loadSharedAlbum,
             sharedAlbums,
-            currentAlbum
+            currentAlbum,
+            faces,
+            facelist,
+            printFaces,
+            getFaceThumbnail,
+            searchByFace
         };
     }
 };
@@ -329,5 +419,40 @@ export default {
 
 .image:hover {
     transform: scale(1.05); /* Slight zoom on hover */
+}
+
+.face-carousel {
+    margin-bottom: 20px;
+}
+
+.face-thumbnail {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.face-thumbnail:hover {
+    transform: scale(1.1);
+}
+.carousel-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.carousel-button.prev {
+    left: 10px;
+}
+
+.carousel-button.next {
+    right: 10px;
 }
 </style>

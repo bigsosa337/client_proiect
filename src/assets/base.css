@@ -1,4 +1,25 @@
 /* color palette from <https://github.com/vuejs/theme> */
+
+@font-face {
+  font-family: 'Poppins-Regular';
+  src: url('public/fonts/poppins/Poppins-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Poppins-Bold';
+  src: url('public/fonts/poppins/Poppins-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Poppins-Medium';
+  src: url('public/fonts/poppins/Poppins-Medium.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat-Bold';
+  src: url('public/fonts/montserrat/Montserrat-Bold.ttf');
+}
+
 :root {
   --vt-c-white: #ffffff;
   --vt-c-white-soft: #f8f8f8;
