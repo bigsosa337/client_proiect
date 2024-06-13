@@ -1,7 +1,9 @@
 <template>
     <Card class="image-card" @click="handleClick">
         <template #header>
-            <img :src="imageSrc" alt="Image" class="image" v-if="imageSrc" />
+            <div class="image-container" v-if="imageSrc">
+                <img :src="imageSrc" alt="Image" class="image" />
+            </div>
             <div v-else class="placeholder">Loading...</div>
         </template>
     </Card>
@@ -80,6 +82,8 @@ export default {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    object-fit: contain;
+    transition: transform 0.3s ease; /* Add transition for smooth scaling */
 }
 
 .placeholder {
@@ -99,12 +103,20 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.3s ease; /* Add transition for smooth scaling */
+}
+
+.image-card:hover .image-container {
+    transform: scale(1.1); /* Scale the container on hover */
 }
 
 .image {
-    /* Maintain aspect ratio and zoom to fit */
-    object-fit:fill;
-    /*max-width: 200%;*/
-    /*max-height: 200%;*/
+    width: 100%;
+    height: 100%;
+    transition: transform 0.3s ease; /* Add transition for smooth zooming */
+}
+
+.image-card:hover .image {
+    transform: scale(1.1); /* Zoom out the image on hover */
 }
 </style>

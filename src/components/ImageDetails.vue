@@ -1,51 +1,83 @@
 <template>
-    <div class="image-details">
-        <router-link to="/" class="back-button">Back to Gallery</router-link>
-        <div class="image-container">
-            <img :src="imageSrc" :alt="imageDetails.title" class="img"/>
-        </div>
-        <div class="image-info">
-            <button @click="deleteImage">Delete Image</button>
-            <button @click="duplicateImage">Duplicate Image</button>
-            <button @click="editImage">Edit Details</button>
-            <button @click="downloadImage">
-                <span> <i class="pi pi-arrow-circle-down" /></span>
-            </button>
-            <p class="filename">File Name: {{ imageDetails.filename }}</p>
-            <h2>Title: {{ imageDetails.title }}</h2>
-            <p>Description: {{ imageDetails.description }}</p>
-            <p>Tags: {{ imageDetails.tags }}</p>
-        </div>
-        <div v-if="loading" class="loading-overlay">
-            <div class="loader"></div>
-        </div>
-    </div>
+    <Dialog :visible="visible" @update:visible="updateVisible" class="image-details-dialog" modal dismissableMask @hide="closeModal" :style="{ maxWidth: '80vw', maxHeight: '80vh' }">
+        <template #container="{ closeCallback }">
+            <div class="custom-modal" @click.self="closeCallback">
+                <div class="modal-header">
+                    <Button icon="pi pi-times" class="p-button-info action-button" @click="closeCallback" />
+                </div>
+                <div class="image-details">
+                    <div class="image-container">
+                        <img :src="imageSrc" :alt="imageDetails.title" class="img"/>
+                    </div>
+                    <div class="image-info">
+                        <div class="buttons">
+                            <Button label="" class="p-button-success action-button" icon="pi pi-copy" @click="duplicateImage" />
+                            <Button label="" class="p-button-warning action-button" icon="pi pi-pencil" @click="editImage" />
+                            <Button label="" class="p-button-info action-button" icon="pi pi-download" @click="downloadImage" />
+                            <Button label="" class="p-button-danger action-button delete-button" icon="pi pi-trash" @click="deleteImage(closeCallback)" />
+                        </div>
+                        <p class="filename">File Name: {{ imageDetails.filename }}</p>
+                        <h2 class="title">Title: {{ imageDetails.title }}</h2>
+                        <div class="tags">
+                            <Tag v-for="tag in imageDetails.tags" :key="tag" :value="tag" class="tag" severity="contrast"/>
+                        </div>
+                    </div>
+                    <div v-if="loading" class="loading-overlay">
+                        <div class="loader"></div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </Dialog>
 </template>
-
 <script>
+import { ref, watch } from 'vue';
+import Dialog from 'primevue/dialog';
+import Button from 'primevue/button';
+import Tag from 'primevue/tag';
+
 export default {
     name: "ImageDetails",
+    components: { Dialog, Button, Tag },
+    props: {
+        visible: {
+            type: Boolean,
+            required: true
+        },
+        filename: {
+            type: String,
+            required: true,
+            default: ''
+        }
+    },
     data() {
         return {
             imageDetails: {},
             imageSrc: "",
-            selectedFilter: "normal",
             loading: false
         };
     },
+    watch: {
+        filename: 'fetchImageInfo',
+        visible: 'fetchImageInfo'
+    },
     methods: {
-        async fetchImageInfo(filename) {
+        async fetchImageInfo() {
+            if (!this.filename) return;
             try {
+                this.loading = true;
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}`, {
+                const response = await fetch(`http://localhost:3000/getImageInfo/${this.filename}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
                 this.imageDetails = data;
-                this.imageSrc = await this.getImageData(filename);
+                this.imageSrc = await this.getImageData(this.filename);
             } catch (error) {
                 console.error("Error fetching image details:", error);
+            } finally {
+                this.loading = false;
             }
         },
         async getImageData(filename) {
@@ -60,14 +92,14 @@ export default {
                 console.error("Error fetching image data:", error);
             }
         },
-        async deleteImage() {
+        async deleteImage(closeCallback) {
             try {
-                const filename = this.$route.params.filename;
-                const response = await fetch(`http://localhost:3000/deleteImage/${filename}`, {
+                const response = await fetch(`http://localhost:3000/deleteImage/${this.filename}`, {
                     method: "DELETE",
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                closeCallback();
                 this.$router.push("/");
             } catch (error) {
                 console.error("Error deleting image:", error);
@@ -75,8 +107,7 @@ export default {
         },
         async duplicateImage() {
             try {
-                const filename = this.$route.params.filename;
-                const response = await fetch(`http://localhost:3000/duplicateImage/${filename}`, {
+                const response = await fetch(`http://localhost:3000/duplicateImage/${this.filename}`, {
                     method: "POST",
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
@@ -90,11 +121,10 @@ export default {
             if (!localStorage.getItem('token')) {
                 alert('You are not authorized to edit this image.');
             } else {
-                this.$router.push(`/edit/${this.$route.params.filename}`);
+                this.$router.push(`/edit/${this.filename}`);
             }
         },
         downloadImage() {
-
             const link = document.createElement('a');
             link.href = this.imageSrc;
             link.download = this.imageDetails.filename;
@@ -102,152 +132,153 @@ export default {
             link.click();
             document.body.removeChild(link);
         },
-        applyFilter() {
-            if (!this.selectedFilter || this.selectedFilter === "normal") {
-                alert("Please select a filter");
-                return;
-            }
+        closeModal() {
+            this.$emit('close');
+        },
+        updateVisible(value) {
+            this.$emit('update:visible', value);
         }
     },
     created() {
-        const filename = this.$route.params.filename;
-        this.fetchImageInfo(filename);
+        if (this.filename) {
+            this.fetchImageInfo();
+        }
     }
 };
 </script>
-
 <style scoped>
+@font-face {
+    font-family: 'Poppins-Regular';
+    src: url('../../public/fonts/poppins/Poppins-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Poppins-Bold';
+    src: url('../../public/fonts/poppins/Poppins-Bold.ttf');
+}
+
+@font-face {
+    font-family: 'Poppins-Medium';
+    src: url('../../public/fonts/poppins/Poppins-Medium.ttf');
+}
+
+@font-face {
+    font-family: 'Montserrat-Bold';
+    src: url('../../public/fonts/montserrat/Montserrat-Bold.ttf');
+}
+
+.image-details-dialog {
+    display: flex;
+    flex-direction: column;
+    font-family: 'Poppins-Regular', sans-serif;
+}
+
+.custom-modal {
+    background-color: rgba(239, 237, 235, 0.99);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-header {
+    align-self: flex-end;
+    background: none;
+    border: none;
+    color: #000;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
+}
+
 .image-details {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 20px;
-    background-color: whitesmoke;
-    padding: 20px;
-    border-radius: 6px;
-}
-
-.filename {
-    padding: 20px;
-}
-
-.back-button {
-    margin-bottom: 10px;
-    color: #000000;
-    cursor: pointer;
-    text-decoration: none;
-    font-weight: bold;
-    border: 1px solid #000000;
-    padding: 15px;
-    border-radius: 6px;
-}
-
-.back-button:hover {
-    background-color: #000000;
-    color: #fff;
 }
 
 .image-container {
-    max-width: 600px;
-    padding: 20px;
-}
-
-.image-info {
-    margin-left: 20px;
-    float: right;
-}
-
-.image-info h2 {
-    font-size: 24px;
-    margin-bottom: 10px;
-}
-
-button {
-    padding: 8px 16px;
-    background-color: #000000;
-    color: #fff;
-    cursor: pointer;
-    font-size: 14px;
-    border-radius: 4px;
-    margin: 10px 5px 0px 5px;
-    border: 1px solid #000000;
-}
-
-button:hover {
-    background-color: #ffffff;
-    color: #000000;
-    border: 1px solid #000000;
-}
-
-select {
-    padding: 6px 10px;
-    font-size: 14px;
-    border-radius: 4px;
-    margin: 10px 5px 0px 5px;
+    display: flex;
+    justify-content: center;
 }
 
 img {
-    max-width: 100%;
-    height: auto;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-    margin: 20px 0;
+    max-width: 50vh;
+    border-radius: 5px;
+}
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+.image-info {
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    text-align: justify;
 }
 
-canvas {
-    max-width: 100%;
-    height: auto;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-    margin: 20px 0;
+.action-button {
+    background: none;
+    border: none;
+    color: #000;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
 }
 
-p {
-    margin: 5px 0;
-    font-size: 14px;
+.action-button:hover {
+    background: #000;
+    color: #fff;
 }
 
-option {
-    font-size: 14px;
+.delete-button {
+    color: #b90707;
 }
 
-#title {
-    margin: 20px;
-    font-family: 'Poppins', sans-serif;
-    font-weight: bold;
+.delete-button:hover {
+    background: #b90707;
+    color: #fff;
 }
 
-#description {
-    margin: 20px;
+.filename,
+.title,
+.tags {
     font-size: 16px;
+    color: #666;
+    margin: 10px 0;
 }
 
-#tags {
-    margin: 20px;
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
-.img {
-    max-width: 500px;
+.tag {
+    margin-top: 5px;
 }
 
 .loading-overlay {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 999;
+    background: rgba(255, 255, 255, 0.7);
 }
 
 .loader {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top: 4px solid #000;
     border-radius: 50%;
     width: 40px;
     height: 40px;
-    animation: spin 2s linear infinite;
+    animation: spin 1s linear infinite;
 }
 
 @keyframes spin {

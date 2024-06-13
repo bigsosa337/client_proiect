@@ -649,8 +649,14 @@ export default defineComponent({
     display: flex;
     flex-direction: column;
     align-items: center;
+    background-color: whitesmoke;
+    border-radius: 10px;
+    padding: 20px;
+    max-width: 800px;
 }
-
+h1 {
+    padding: 20px;
+}
 .header {
     display: flex;
     justify-content: center;
@@ -688,6 +694,7 @@ export default defineComponent({
     max-height: 400px;
     border-radius: 10px;
     margin-bottom: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .field {
@@ -706,11 +713,21 @@ export default defineComponent({
 .clear-icon {
     cursor: pointer;
     font-size: 24px;
-    margin: 0 10px;
+    /*margin: 0 10px;*/
+    padding: 10px;
+    border: 2px solid black;
+    border-radius: 25px;
+}
+.auto-tag-icon:hover {
+    background-color: #f3f3f3;
+}
+.clear-icon:hover {
+    background-color: #f3f3f3;
 }
 
+
 .uploadButton {
-    background-color: #007bff;
+    background-color: #000000;
     color: #fff;
     border: none;
     border-radius: 4px;
