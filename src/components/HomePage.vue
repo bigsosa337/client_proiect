@@ -1,5 +1,5 @@
 <template>
-    <div class="home-page">
+    <div class="home-page" @reload-images="fetchImageFilenames">
         <div class="side-panel">
             <div class="album-selection">
                 <h2>Albums</h2>
@@ -66,10 +66,20 @@
                 </div>
             </div>
         </div>
-        <ImageDetails v-if="selectedImage" :visible="isImageDetailsVisible" @update:visible="updateVisible"  @close="closeImageDetails" :filename="selectedImage" />
+        <ImageDetails v-if="selectedImage"
+                      :visible="isImageDetailsVisible"
+                      @update:visible="updateVisible"
+                      @close="closeImageDetails"
+                      @imageDeleted="fetchImageFilenames"
+                      :filename="selectedImage" />
+        <Button
+            icon="pi pi-plus"
+            class="floating-button"
+            @click="openUploadModal"
+        />
+        <UploadModal :visible="isUploadModalVisible" @update:visible="updateUploadModalVisible" @image-uploaded="handleImageUploaded" />
     </div>
 </template>
-
 
 <script setup>
 import { ref, onMounted } from 'vue';
@@ -80,6 +90,7 @@ import MultiSelect from 'primevue/multiselect';
 import Button from 'primevue/button';
 import ImageItem from './ImageItem.vue';
 import ImageDetails from './ImageDetails.vue';
+import UploadModal from './UploadPicture.vue';
 import { map } from 'lodash';
 import Carousel from 'primevue/carousel';
 
@@ -93,6 +104,7 @@ const sharedAlbums = ref([]);
 const currentAlbum = ref('my');
 const faces = ref([]);
 const placeholderFilenames = ref([]);
+const isUploadModalVisible = ref(false);
 
 const isImageDetailsVisible = ref(false);
 const selectedImage = ref(null);
@@ -236,6 +248,18 @@ const closeModal = () => {
     this.$emit('close');
 }
 
+const openUploadModal = () => {
+    isUploadModalVisible.value = true;
+};
+
+const updateUploadModalVisible = (value) => {
+    isUploadModalVisible.value = value;
+};
+
+const handleImageUploaded = () => {
+    fetchImageFilenames();
+};
+
 onMounted(() => {
     fetchImageFilenames();
     fetchTags();
@@ -270,9 +294,7 @@ onMounted(() => {
 }
 
 .side-panel {
-    width: 280px; /* Adjust this width as needed */
-    /*padding: 20px;*/
-    /*background-color: #f8f9fa; !* Light background for side panel *!*/
+    width: 280px;
 }
 
 .album-selection {
@@ -325,7 +347,6 @@ onMounted(() => {
 
 .input-element {
     flex: 1;
-
 }
 
 .clear-button {
@@ -376,5 +397,29 @@ onMounted(() => {
 .col-3 {
     flex: 1 1 calc(25% - 10px);
     box-sizing: border-box;
+}
+
+.floating-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #007bff;
+    color: white;
+    font-size: 24px;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s, color 0.3s, transform 0.3s;
+}
+
+.floating-button:hover {
+    background-color: #0056b3;
+    color: white;
+    transform: rotate(180deg);
 }
 </style>

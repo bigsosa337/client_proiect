@@ -1,6 +1,6 @@
 <template>
     <div>
-        <Menubar :model="items" class="header" v-if="isAuth" >
+        <Menubar :model="items" class="header" v-if="isAuth">
             <template #start>
                 <img src="/logo.png" alt="Logo" class="header-logo" />
             </template>
@@ -37,7 +37,7 @@ export default {
                 {
                     label: 'Upload',
                     command: () => {
-                        this.goToUpload();
+                        this.openUploadModal();
                     },
                     visible: this.isAuth,
                     class: route.path === '/upload' ? 'active' : ''
@@ -81,7 +81,7 @@ export default {
         goHome() {
             this.$router.push('/');
         },
-        goToUpload() {
+        openUploadModal() {
             this.$router.push('/upload');
         },
         goToProfile() {
@@ -97,8 +97,19 @@ export default {
             localStorage.removeItem('token');
             this.$router.push('/login');
             this.$store.dispatch("logout");
+        },
+        checkAuth() {
+            if (!this.isAuth) {
+                this.$router.push('/login');
+            }
         }
     },
+    mounted() {
+        this.checkAuth();
+    },
+    created() {
+        this.checkAuth();
+    }
 };
 </script>
 
@@ -112,13 +123,18 @@ export default {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #e0e0e0;
+    position: fixed;
+    top: 15px;
+    z-index: 1000;
+    width: 1240px;
 }
 
 .header-logo {
     padding: 5px 20px 2px 10px;
-    height:5vh;
-    margin-top:3px;
+    height: 5vh;
+    margin-top: 3px;
 }
+
 .p-menubar {
     background-color: #fff;
     border: none;
@@ -142,7 +158,6 @@ export default {
     transition: border-bottom 0.3s;
 }
 
-
 .p-menubar .p-menubar-root-list > .p-menubaritem > .p-menuitem-link:focus {
     box-shadow: none;
 }
@@ -162,10 +177,8 @@ export default {
 }
 
 .content {
-    margin-top: 20px;
-    /*padding: 20px;*/
+    margin-top: 70px; /* Adjusted to prevent overlapping with fixed header */
     border-radius: 5px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    /*background-color: #ffffff;*/
 }
 </style>

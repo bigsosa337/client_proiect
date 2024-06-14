@@ -30,6 +30,7 @@
         </template>
     </Dialog>
 </template>
+
 <script>
 import { ref, watch } from 'vue';
 import Dialog from 'primevue/dialog';
@@ -100,6 +101,7 @@ export default {
                 });
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 closeCallback();
+                this.$emit('imageDeleted'); // Emit event after deleting image
                 this.$router.push("/");
             } catch (error) {
                 console.error("Error deleting image:", error);
@@ -146,6 +148,7 @@ export default {
     }
 };
 </script>
+
 <style scoped>
 @font-face {
     font-family: 'Poppins-Regular';
