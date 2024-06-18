@@ -35,14 +35,6 @@ export default {
                     class: route.path === '/' ? 'active' : ''
                 },
                 {
-                    label: 'Upload',
-                    command: () => {
-                        this.openUploadModal();
-                    },
-                    visible: this.isAuth,
-                    class: route.path === '/upload' ? 'active' : ''
-                },
-                {
                     label: 'Profile',
                     command: () => {
                         this.goToProfile();

@@ -50,7 +50,7 @@
                     :autoplayInterval="3000"
                 >
                     <template #item="slotProps">
-                        <div class="carousel-item">
+                        <div class="carousel-item" @click="handleThumbnailClick(slotProps.data.thumbnail)">
                             <img
                                 :src="'data:image/jpeg;base64,' + slotProps.data.thumbnail"
                                 alt="Detected Face"
@@ -139,6 +139,7 @@ const fetchFaces = async () => {
                 thumbnail: face.thumbnail,
                 filename: face.filename
             }));
+            console.log('face', faces)
         } else {
             console.error('Failed to fetch faces.');
         }
@@ -260,6 +261,32 @@ const handleImageUploaded = () => {
     fetchImageFilenames();
 };
 
+const handleThumbnailClick = async (face) => {
+    try {
+        console.log('Searching images for face:', face);
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/searchByFace', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ face })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Received image filenames:', data.images);
+            imageFilenames.value = data.images;
+        } else {
+            console.error('Failed to search images by face:', response.status);
+            imageFilenames.value = [];
+        }
+    } catch (error) {
+        console.error('Error searching images by face:', error);
+        imageFilenames.value = [];
+    }
+};
 onMounted(() => {
     fetchImageFilenames();
     fetchTags();
