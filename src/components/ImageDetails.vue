@@ -11,10 +11,25 @@
                     </div>
                     <div class="image-info">
                         <div class="buttons">
-                            <Button label="" class="p-button-success action-button" icon="pi pi-copy" @click="duplicateImage" />
-                            <Button label="" class="p-button-warning action-button" icon="pi pi-pencil" @click="editImage" />
-                            <Button label="" class="p-button-info action-button" icon="pi pi-download" @click="downloadImage" />
-                            <Button label="" class="p-button-danger action-button delete-button" icon="pi pi-trash" @click="deleteImage(closeCallback)" />
+                            <Button label=""
+                                    class="p-button-success action-button"
+                                    icon="pi pi-copy"
+                                    v-if="currentAlbum === 'my'"
+                                    @click="duplicateImage" />
+                            <Button label=""
+                                    class="p-button-warning action-button"
+                                    icon="pi pi-pencil"
+                                    v-if="currentAlbum === 'my'"
+                                    @click="editImage" />
+                            <Button label=""
+                                    class="p-button-info action-button"
+                                    icon="pi pi-download"
+                                    @click="downloadImage" />
+                            <Button label=""
+                                    class="p-button-danger action-button delete-button"
+                                    icon="pi pi-trash"
+                                    v-if="currentAlbum === 'my'"
+                                    @click="deleteImage(closeCallback)" />
                         </div>
                         <p class="filename">File Name: {{ imageDetails.filename }}</p>
                         <h2 class="title">Title: {{ imageDetails.title }}</h2>
@@ -49,6 +64,11 @@ export default {
             type: String,
             required: true,
             default: ''
+        },
+        currentAlbum: {
+            type: String,
+            required: true,
+            default: 'my'
         }
     },
     data() {
@@ -67,24 +87,29 @@ export default {
             if (!this.filename) return;
             try {
                 this.loading = true;
+                let filename = this.filename;
+                console.log(filename)
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:3000/getImageInfo/${this.filename}`, {
+                const sharedUserId = this.currentAlbum !== 'my' ? this.currentAlbum : null;
+                if(sharedUserId) filename = this.filename.replace('images/', '');
+                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}${sharedUserId ? `?sharedUserId=${sharedUserId}` : ''}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                console.log(response)
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
                 this.imageDetails = data;
-                this.imageSrc = await this.getImageData(this.filename);
+                this.imageSrc = await this.getImageData(this.filename, sharedUserId);
             } catch (error) {
                 console.error("Error fetching image details:", error);
             } finally {
                 this.loading = false;
             }
         },
-        async getImageData(filename) {
+        async getImageData(filename, sharedUserId = null) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:3000/getImageData/${filename}`, {
+                const response = await fetch(`http://localhost:3000/getImageData/${filename}${sharedUserId ? `?sharedUserId=${sharedUserId}` : ''}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
@@ -94,6 +119,7 @@ export default {
             }
         },
         async deleteImage(closeCallback) {
+            if (this.currentAlbum !== 'my') return alert("You are not authorized to duplicate this image.");
             try {
                 const response = await fetch(`http://localhost:3000/deleteImage/${this.filename}`, {
                     method: "DELETE",
@@ -108,6 +134,7 @@ export default {
             }
         },
         async duplicateImage() {
+            if (this.currentAlbum !== 'my') return alert("You are not authorized to duplicate this image.");
             try {
                 const response = await fetch(`http://localhost:3000/duplicateImage/${this.filename}`, {
                     method: "POST",
@@ -120,6 +147,7 @@ export default {
             }
         },
         editImage() {
+            if (this.currentAlbum !== 'my') return alert("You are not authorized to duplicate this image.");
             if (!localStorage.getItem('token')) {
                 alert('You are not authorized to edit this image.');
             } else {

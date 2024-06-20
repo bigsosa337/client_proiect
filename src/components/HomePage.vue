@@ -65,13 +65,21 @@
                     <ImageItem :filename="filename" @clickImage="openImageDetails" />
                 </div>
             </div>
+            <div ref="loadMoreTrigger" v-if="!isSearching && hasMoreImages" class="load-more">
+                <Button
+                    label="Load More"
+                    @click="loadMoreImages"
+                    class="load-more-button"
+                />
+            </div>
         </div>
         <ImageDetails v-if="selectedImage"
                       :visible="isImageDetailsVisible"
                       @update:visible="updateVisible"
                       @close="closeImageDetails"
                       @imageDeleted="fetchImageFilenames"
-                      :filename="selectedImage" />
+                      :filename="selectedImage"
+                      :currentAlbum="currentAlbum"/>
         <Button
             icon="pi pi-plus"
             class="floating-button"
@@ -82,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import debounce from 'lodash/debounce';
 import InputText from 'primevue/inputtext';
@@ -109,21 +117,39 @@ const isUploadModalVisible = ref(false);
 const isImageDetailsVisible = ref(false);
 const selectedImage = ref(null);
 
+const page = ref(1);
+const limit = ref(10);
+const isFetching = ref(false);
+const hasMoreImages = ref(true);
+const isSearching = ref(false);
+const loadMoreTrigger = ref(null);
+
 const fetchImageFilenames = async () => {
+    if (isFetching.value) return;
+    isFetching.value = true;
     try {
         const token = localStorage.getItem('token');
         const endpoint = currentAlbum.value === 'my' ? 'listImages' : `listSharedImages/${currentAlbum.value}`;
-        const response = await fetch(`http://localhost:3000/${endpoint}`, {
+        const response = await fetch(`http://localhost:3000/${endpoint}?page=${page.value}&limit=${limit.value}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         const data = await response.json();
-        imageFilenames.value = data.images;
-        placeholderFilenames.value = data.images;
+        if (data.images.length < limit.value) {
+            hasMoreImages.value = false;
+        }
+        imageFilenames.value = [...imageFilenames.value, ...data.images];
     } catch (error) {
         console.error('Error fetching image filenames:', error);
+    } finally {
+        isFetching.value = false;
     }
+};
+
+const loadMoreImages = () => {
+    page.value++;
+    fetchImageFilenames();
 };
 
 const fetchFaces = async () => {
@@ -170,6 +196,7 @@ const fetchTags = async () => {
 };
 
 const performSearch = async () => {
+    isSearching.value = true;
     try {
         const token = localStorage.getItem('token');
         if (searchQuery.value.length >= 3) {
@@ -182,17 +209,24 @@ const performSearch = async () => {
             const data = await response.json();
             imageFilenames.value = data.images;
         } else {
+            page.value = 1;
+            imageFilenames.value = [];
             await fetchImageFilenames();
         }
     } catch (error) {
         console.error('Error performing search:', error);
+    } finally {
+        isSearching.value = false;
     }
 };
 
 const filterImagesByTag = async () => {
+    isSearching.value = true;
     try {
         const token = localStorage.getItem('token');
         if (selectedTags.value.length === 0) {
+            page.value = 1;
+            imageFilenames.value = [];
             await fetchImageFilenames();
         } else {
             const tagsString = selectedTags.value.map(tag => tag.name).join(',');
@@ -211,12 +245,16 @@ const filterImagesByTag = async () => {
         }
     } catch (error) {
         console.error('Error fetching images by tag:', error);
+    } finally {
+        isSearching.value = false;
     }
 };
 
 const clearSearch = () => {
     searchQuery.value = '';
     selectedTags.value = [];
+    page.value = 1;
+    imageFilenames.value = [];
     fetchImageFilenames();
 };
 
@@ -224,11 +262,17 @@ const debouncedSearch = debounce(performSearch, 300);
 
 const loadMyAlbum = () => {
     currentAlbum.value = 'my';
+    page.value = 1;
+    imageFilenames.value = [];
+    hasMoreImages.value = true;
     fetchImageFilenames();
 };
 
 const loadSharedAlbum = (userId) => {
     currentAlbum.value = userId;
+    page.value = 1;
+    imageFilenames.value = [];
+    hasMoreImages.value = true;
     fetchImageFilenames();
 };
 
@@ -258,6 +302,8 @@ const updateUploadModalVisible = (value) => {
 };
 
 const handleImageUploaded = () => {
+    imageFilenames.value = [];
+    page.value = 1;
     fetchImageFilenames();
 };
 
@@ -287,6 +333,22 @@ const handleThumbnailClick = async (face) => {
         imageFilenames.value = [];
     }
 };
+
+const observeElement = (element) => {
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && hasMoreImages.value && !isFetching.value && !isSearching.value) {
+                loadMoreImages();
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 1.0
+    });
+    observer.observe(element);
+};
+
 onMounted(() => {
     fetchImageFilenames();
     fetchTags();
@@ -312,6 +374,17 @@ onMounted(() => {
     };
 
     fetchSharedAlbums();
+
+    if (loadMoreTrigger.value) {
+        observeElement(loadMoreTrigger.value);
+    }
+});
+
+watch(currentAlbum, async () => {
+    imageFilenames.value = [];
+    page.value = 1;
+    hasMoreImages.value = true;
+    await fetchImageFilenames();
 });
 </script>
 
@@ -424,6 +497,26 @@ onMounted(() => {
 .col-3 {
     flex: 1 1 calc(25% - 10px);
     box-sizing: border-box;
+}
+
+.load-more {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.load-more-button {
+    background-color: black;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.load-more-button:hover {
+    background-color: #555;
+    color: white;
 }
 
 .floating-button {
