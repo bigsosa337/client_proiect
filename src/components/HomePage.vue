@@ -73,13 +73,21 @@
                 />
             </div>
         </div>
-        <ImageDetails v-if="selectedImage"
+        <ImageDetails v-if="selectedImage && !isEditDetailsVisible"
                       :visible="isImageDetailsVisible"
                       @update:visible="updateVisible"
                       @close="closeImageDetails"
+                      @edit="openEditDetails"
                       @imageDeleted="fetchImageFilenames"
                       :filename="selectedImage"
                       :currentAlbum="currentAlbum"/>
+        <EditDetails
+            v-if="isEditDetailsVisible"
+            :visible="isEditDetailsVisible"
+            @update:visible="updateEditVisible"
+            @close="closeEditDetails"
+            :filename="selectedImage"
+            :currentAlbum="currentAlbum"/>
         <Button
             icon="pi pi-plus"
             class="floating-button"
@@ -99,6 +107,7 @@ import Button from 'primevue/button';
 import ImageItem from './ImageItem.vue';
 import ImageDetails from './ImageDetails.vue';
 import UploadModal from './UploadPicture.vue';
+import EditDetails from './EditDetails.vue'; // Import the EditDetails component
 import { map } from 'lodash';
 import Carousel from 'primevue/carousel';
 
@@ -115,6 +124,7 @@ const placeholderFilenames = ref([]);
 const isUploadModalVisible = ref(false);
 
 const isImageDetailsVisible = ref(false);
+const isEditDetailsVisible = ref(false);
 const selectedImage = ref(null);
 
 const page = ref(1);
@@ -154,9 +164,11 @@ const loadMoreImages = () => {
 
 const fetchFaces = async () => {
     try {
-        const response = await fetch(`http://localhost:3000/getFaces`, {
+        const token = localStorage.getItem('token');
+        const endpoint = currentAlbum.value === 'my' ? 'getFaces' : `getSharedFaces/${currentAlbum.value}`;
+        const response = await fetch(`http://localhost:3000/${endpoint}`, {
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             }
         });
         if (response.ok) {
@@ -165,7 +177,6 @@ const fetchFaces = async () => {
                 thumbnail: face.thumbnail,
                 filename: face.filename
             }));
-            console.log('face', faces)
         } else {
             console.error('Failed to fetch faces.');
         }
@@ -266,6 +277,7 @@ const loadMyAlbum = () => {
     imageFilenames.value = [];
     hasMoreImages.value = true;
     fetchImageFilenames();
+    fetchFaces(); // Update faces when switching albums
 };
 
 const loadSharedAlbum = (userId) => {
@@ -274,6 +286,7 @@ const loadSharedAlbum = (userId) => {
     imageFilenames.value = [];
     hasMoreImages.value = true;
     fetchImageFilenames();
+    fetchFaces(); // Update faces when switching albums
 };
 
 const openImageDetails = (filename) => {
@@ -300,18 +313,30 @@ const openUploadModal = () => {
 const updateUploadModalVisible = (value) => {
     isUploadModalVisible.value = value;
 };
+const updateEditVisible = (value) => {
+    isEditDetailsVisible.value = value;
+};
 
 const handleImageUploaded = () => {
     imageFilenames.value = [];
     page.value = 1;
     fetchImageFilenames();
+    fetchFaces(); // Update faces after image upload
 };
 
+const openEditDetails = () => {
+    isEditDetailsVisible.value = true;
+    isImageDetailsVisible.value = false;
+};
+const closeEditDetails = () => {
+    isEditDetailsVisible.value = false;
+    selectedImage.value = null;
+};
 const handleThumbnailClick = async (face) => {
     try {
-        console.log('Searching images for face:', face);
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3000/searchByFace', {
+        const endpoint = currentAlbum.value === 'my' ? 'searchByFace' : `searchSharedByFace/${currentAlbum.value}`;
+        const response = await fetch(`http://localhost:3000/${endpoint}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -322,7 +347,6 @@ const handleThumbnailClick = async (face) => {
 
         if (response.ok) {
             const data = await response.json();
-            console.log('Received image filenames:', data.images);
             imageFilenames.value = data.images;
         } else {
             console.error('Failed to search images by face:', response.status);
@@ -385,6 +409,7 @@ watch(currentAlbum, async () => {
     page.value = 1;
     hasMoreImages.value = true;
     await fetchImageFilenames();
+    fetchFaces(); // Update faces when switching albums
 });
 </script>
 
@@ -487,7 +512,9 @@ watch(currentAlbum, async () => {
     border-radius: 50%;
     object-fit: cover;
 }
-
+.face-thumbnail:hover {
+    cursor: pointer;
+}
 .row {
     display: flex;
     flex-wrap: wrap;

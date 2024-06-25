@@ -41,7 +41,6 @@ export default {
 
                 const blob = await response.blob();
                 imageSrc.value = URL.createObjectURL(blob);
-                console.log('Image fetched for filename:', props.filename);
             } catch (error) {
                 console.error('Error fetching image:', error);
             }

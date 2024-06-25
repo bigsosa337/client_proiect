@@ -27,8 +27,8 @@
                                     @click="downloadImage" />
                             <Button label=""
                                     class="p-button-danger action-button delete-button"
-                                    icon="pi pi-trash"
                                     v-if="currentAlbum === 'my'"
+                                    icon="pi pi-trash"
                                     @click="deleteImage(closeCallback)" />
                         </div>
                         <p class="filename">File Name: {{ imageDetails.filename }}</p>
@@ -88,14 +88,12 @@ export default {
             try {
                 this.loading = true;
                 let filename = this.filename;
-                console.log(filename)
                 const token = localStorage.getItem('token');
                 const sharedUserId = this.currentAlbum !== 'my' ? this.currentAlbum : null;
                 if(sharedUserId) filename = this.filename.replace('images/', '');
                 const response = await fetch(`http://localhost:3000/getImageInfo/${filename}${sharedUserId ? `?sharedUserId=${sharedUserId}` : ''}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                console.log(response)
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
                 this.imageDetails = data;
@@ -127,7 +125,7 @@ export default {
                 });
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 closeCallback();
-                this.$emit('imageDeleted'); // Emit event after deleting image
+                this.$emit('imageDeleted');
                 this.$router.push("/");
             } catch (error) {
                 console.error("Error deleting image:", error);
@@ -147,12 +145,7 @@ export default {
             }
         },
         editImage() {
-            if (this.currentAlbum !== 'my') return alert("You are not authorized to duplicate this image.");
-            if (!localStorage.getItem('token')) {
-                alert('You are not authorized to edit this image.');
-            } else {
-                this.$router.push(`/edit/${this.filename}`);
-            }
+            this.$emit('edit');
         },
         downloadImage() {
             const link = document.createElement('a');
@@ -191,11 +184,6 @@ export default {
 @font-face {
     font-family: 'Poppins-Medium';
     src: url('../../public/fonts/poppins/Poppins-Medium.ttf');
-}
-
-@font-face {
-    font-family: 'Montserrat-Bold';
-    src: url('../../public/fonts/montserrat/Montserrat-Bold.ttf');
 }
 
 .image-details-dialog {

@@ -1,36 +1,59 @@
 <template>
-    <div class="form">
-        <h1>Edit Image Image</h1>
-        <form @submit.prevent="submitForm">
-            <div class="image-container">
-                <img :src="imageSrc" :alt="title" />
+    <Dialog :visible="visible" @update:visible="updateVisible" class="image-details-dialog" modal dismissableMask @hide="closeModal" :style="{ maxWidth: '80vw', maxHeight: '80vh' }">
+        <template #container="{ closeCallback }">
+            <div class="custom-modal" @click.self="closeCallback">
+                <div class="modal-header">
+                    <Button icon="pi pi-times" class="p-button-info action-button" @click="closeCallback" />
+                </div>
+                <div class="image-details">
+                    <div class="image-container">
+                        <img :src="imageSrc" :alt="title" />
+                    </div>
+                    <span class="fields">
+                        <div class="field">
+                            <label for="title">Edit the title for the image:</label>
+                            <input type="text" id="title" name="title" v-model="title"/>
+                        </div>
+                        <div class="field">
+                            <label for="tags">Edit the tags for the image (separated by commas):</label>
+                            <input type="text" id="tags" name="tags" v-model="tags"/>
+                        </div>
+                        <div class="btn">
+                            <button @click="submitForm">Save Changes</button>
+                        </div>
+                    </span>
+                    <div v-if="loading" class="loading-overlay">
+                        <div class="loader"></div>
+                    </div>
+                </div>
             </div>
-            <div class="field">
-                <label for="title">Enter a title for the image:</label>
-                <input type="text" id="title" name="title" v-model="title"/>
-            </div>
-            <div class="field">
-                <label for="description">Enter a description for the image:</label>
-                <textarea id="description" name="description" v-model="description"></textarea>
-            </div>
-            <div class="field">
-                <label for="tags">Enter some tags for the image (separated by commas):</label>
-                <input type="text" id="tags" name="tags" v-model="tags"/>
-            </div>
-            <div class="field">
-                <button type="submit">Edit</button>
-            </div>
-        </form>
-    </div>
+        </template>
+    </Dialog>
 </template>
 
 <script>
-import imageDetails from "@/components/ImageDetails.vue";
+import { ref, watch } from 'vue';
+import Dialog from 'primevue/dialog';
+import Button from 'primevue/button';
 
 export default {
     name: "EditDetails",
-    computed: {
-
+    components: { Dialog, Button },
+    props: {
+        visible: {
+            type: Boolean,
+            required: true
+        },
+        filename: {
+            type: String,
+            required: true,
+            default: ''
+        },
+        currentAlbum: {
+            type: String,
+            required: true,
+            default: 'my'
+        }
     },
     data() {
         return {
@@ -39,78 +62,157 @@ export default {
             description: "",
             tags: "",
             imageDetails: {},
-            filename: '',
+            loading: false
         };
     },
+    watch: {
+        filename: 'fetchImageInfo',
+        visible: 'fetchImageInfo'
+    },
     methods: {
-        async fetchImageInfo(filename) {
+        async fetchImageInfo() {
+            if (!this.filename) return;
             try {
-                // debugger
-
-                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
+                this.loading = true;
+                let filename = this.filename;
+                const token = localStorage.getItem('token');
+                const sharedUserId = this.currentAlbum !== 'my' ? this.currentAlbum : null;
+                if(sharedUserId) filename = this.filename.replace('images/', '');
+                const response = await fetch(`http://localhost:3000/getImageInfo/${filename}${sharedUserId ? `?sharedUserId=${sharedUserId}` : ''}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 const data = await response.json();
-
-                // Update imageDetails with the response data
-                this.imageDetails = data.imageInfo;
-                console.log(data.imageInfo)
-                this.title = data.imageInfo.title;
-                this.description = data.imageInfo.description;
-                this.tags = data.imageInfo.tags.join(", ");
-
-                // Set the image source URL
-                this.imageSrc = `http://localhost:3000/getImageData/${this.filename}`;
+                this.imageDetails = data;
+                this.title = data.title;
+                this.description = data.description;
+                this.tags = data.tags.join(", ");
+                this.imageSrc = await this.getImageData(this.filename, sharedUserId);
             } catch (error) {
                 console.error("Error fetching image details:", error);
-                // Handle errors, e.g., show an error message to the user
+            } finally {
+                this.loading = false;
+            }
+        },
+        async getImageData(filename, sharedUserId = null) {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:3000/getImageData/${filename}${sharedUserId ? `?sharedUserId=${sharedUserId}` : ''}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return URL.createObjectURL(await response.blob());
+            } catch (error) {
+                console.error("Error fetching image data:", error);
             }
         },
         async submitForm() {
-            console.log("submitting form");
-            console.log(this.title);
-            console.log(this.description);
-            console.log(this.tags);
-            let data = {
-                title: this.title,
-                description: this.description,
-                tags: this.tags.split(","),
-            };
-            console.log(data, '------------------------------')
-            const response = await fetch(`http://localhost:3000/updateImage/${this.filename}`, {
-                method: "PATCH",
-                body: JSON.stringify(data),
-                headers: {
-                    "Content-Type": "application/json", // Set the content type to JSON
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-            });
-            this.$router.push("/");
+            try {
+                const data = {
+                    title: this.title,
+                    description: this.description,
+                    tags: this.tags.split(","),
+                };
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:3000/updateImage/${this.filename}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(data),
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                this.$emit('update:visible', false); // Close the modal
+                this.$emit('imageUpdated'); // Emit event after updating image
+            } catch (error) {
+                console.error("Error updating image:", error);
+            }
+        },
+        closeModal() {
+            this.$emit('close');
+        },
+        updateVisible(value) {
+            this.$emit('update:visible', value);
         }
     },
     created() {
-        this.filename = this.$route.params.filename;
-        this.fetchImageInfo(this.filename);
-    },
-}
+        if (this.filename) {
+            this.fetchImageInfo();
+        }
+    }
+};
 </script>
 
 <style scoped>
-.form {
-    text-align: center;
+@font-face {
+    font-family: 'Poppins-Regular';
+    src: url('../../public/fonts/poppins/Poppins-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Poppins-Bold';
+    src: url('../../public/fonts/poppins/Poppins-Bold.ttf');
+}
+
+@font-face {
+    font-family: 'Poppins-Medium';
+    src: url('../../public/fonts/poppins/Poppins-Medium.ttf');
+}
+
+@font-face {
+    font-family: 'Montserrat-Bold';
+    src: url('../../public/fonts/montserrat/Montserrat-Bold.ttf');
+}
+
+.image-details-dialog {
+    display: flex;
+    flex-direction: column;
+    font-family: 'Poppins-Regular', sans-serif;
+}
+
+.custom-modal {
+    background-color: rgba(239, 237, 235, 0.99);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-header {
+    align-self: flex-end;
+    background: none;
+    border: none;
+    color: #000;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
+}
+.fields {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    width: 100%;
+}
+.fields .btn {
+    align-self: center;
+}
+.image-details {
+    display: flex;
+    flex-direction: column;
     padding: 20px;
 }
 
-h1 {
-    font-family: 'Poppins', sans-serif;
-    font-size: 28px;
-    margin-bottom: 20px;
-    color: #33; /* Choose an appropriate color */
+.image-container {
+    display: flex;
+    justify-content: center;
 }
 
+img {
+    max-width: 50vh;
+    border-radius: 5px;
+}
 .field {
     margin-bottom: 20px;
 }
@@ -123,8 +225,6 @@ label {
 }
 
 input[type="text"],
-input[type="email"],
-input[type="password"],
 textarea {
     width: 100%;
     padding: 10px;
@@ -137,12 +237,15 @@ textarea {
 textarea {
     resize: vertical; /* Allow vertical resizing of the textarea */
 }
+field:first-child {
+    margin-top: 10px;
+}
 
 button {
     padding: 12px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid black;
     border-radius: 5px;
     font-size: 16px;
     cursor: pointer;
@@ -150,20 +253,37 @@ button {
 }
 
 button:hover {
-    background-color: #0056b3; /* Darker shade on hover */
+    background-color: #000000; /* Darker shade on hover */
+    color: #ffffff;
 }
 
-.image-container {
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.7);
 }
 
-img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); /* Add a subtle shadow */
+.loader {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top: 4px solid #000;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 </style>
