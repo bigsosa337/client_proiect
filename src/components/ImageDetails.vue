@@ -3,6 +3,7 @@
         <template #container="{ closeCallback }">
             <div class="custom-modal" @click.self="closeCallback">
                 <div class="modal-header">
+                    <div class="date">{{ formattedDate }}</div>
                     <Button icon="pi pi-times" class="p-button-info action-button" @click="closeCallback" />
                 </div>
                 <div class="image-details">
@@ -33,6 +34,7 @@
                         </div>
                         <p class="filename">File Name: {{ imageDetails.filename }}</p>
                         <h2 class="title">Title: {{ imageDetails.title }}</h2>
+                        <p class="uploaded-by"><strong>Uploaded by:</strong> {{ imageDetails.uploadedby }}</p>
                         <div class="tags">
                             <Tag v-for="tag in imageDetails.tags" :key="tag" :value="tag" class="tag" severity="contrast"/>
                         </div>
@@ -47,10 +49,12 @@
 </template>
 
 <script>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import imageFilenames from "lodash/seq";
+import page from "lodash/seq";
 
 export default {
     name: "ImageDetails",
@@ -131,6 +135,7 @@ export default {
                 console.error("Error deleting image:", error);
             }
         },
+
         async duplicateImage() {
             if (this.currentAlbum !== 'my') return alert("You are not authorized to duplicate this image.");
             try {
@@ -165,6 +170,13 @@ export default {
     created() {
         if (this.filename) {
             this.fetchImageInfo();
+        }
+    },
+    computed: {
+        formattedDate() {
+            if (!this.imageDetails.uploadedAt) return '';
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(this.imageDetails.uploadedAt).toLocaleDateString(undefined, options);
         }
     }
 };
@@ -202,7 +214,10 @@ export default {
 }
 
 .modal-header {
-    align-self: flex-end;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
     background: none;
     border: none;
     color: #000;
@@ -220,6 +235,7 @@ export default {
 .image-container {
     display: flex;
     justify-content: center;
+    max-height: 55vh;
 }
 
 img {

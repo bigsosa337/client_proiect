@@ -33,6 +33,18 @@
                     placeholder="Select tags"
                     @change="filterImagesByTag"
                 />
+                <div class="sort-buttons">
+                    <Button
+                        @click="sortImages('newest')"
+                        class="sort-button sort-newest"
+                        icon="pi pi-arrow-up"
+                    />
+                    <Button
+                        @click="sortImages('oldest')"
+                        class="sort-button sort-oldest"
+                        icon="pi pi-arrow-down"
+                    />
+                </div>
                 <Button
                     @click="clearSearch"
                     class="input-element clear-button"
@@ -61,9 +73,16 @@
                 </Carousel>
             </div>
             <div class="row">
-                <div class="col-3" v-for="(filename, index) in imageFilenames" :key="index">
+                <div class="col-3" v-for="(filename, index) in sortedImageFilenames" :key="index">
                     <ImageItem :filename="filename" @clickImage="openImageDetails" />
                 </div>
+                <h1 v-if="imageFilenames.length < 1" class="no-imgs">
+                    There are no items here.
+                    {{ currentAlbum === 'my' ? 'Upload some images!' : 'Ask the user to share some images with you!'}}
+                </h1>
+                <h1 v-if="!isTokenExpired">
+                    Token is expired, please login again.
+                </h1>
             </div>
             <div ref="loadMoreTrigger" v-if="!isSearching && hasMoreImages" class="load-more">
                 <Button
@@ -78,7 +97,7 @@
                       @update:visible="updateVisible"
                       @close="closeImageDetails"
                       @edit="openEditDetails"
-                      @imageDeleted="fetchImageFilenames"
+                      @imageDeleted="handleImageDeleted"
                       :filename="selectedImage"
                       :currentAlbum="currentAlbum"/>
         <EditDetails
@@ -96,9 +115,8 @@
         <UploadModal :visible="isUploadModalVisible" @update:visible="updateUploadModalVisible" @image-uploaded="handleImageUploaded" />
     </div>
 </template>
-
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import debounce from 'lodash/debounce';
 import InputText from 'primevue/inputtext';
@@ -133,6 +151,13 @@ const isFetching = ref(false);
 const hasMoreImages = ref(true);
 const isSearching = ref(false);
 const loadMoreTrigger = ref(null);
+const sortOrder = ref('oldest'); // Default sort order
+
+const sortedImageFilenames = computed(() => {
+    return sortOrder.value === 'newest'
+        ? [...imageFilenames.value].reverse()
+        : imageFilenames.value;
+});
 
 const fetchImageFilenames = async () => {
     if (isFetching.value) return;
@@ -155,6 +180,15 @@ const fetchImageFilenames = async () => {
     } finally {
         isFetching.value = false;
     }
+};
+
+const isTokenExpired = () => {
+    const token = localStorage.getItem('token');
+    const tokenParts = token.split('.');
+    const tokenDecoded = JSON.parse(atob(tokenParts[1]));
+    const tokenExpiry = tokenDecoded.exp;
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    return tokenExpiry < currentTimestamp;
 };
 
 const loadMoreImages = () => {
@@ -185,6 +219,13 @@ const fetchFaces = async () => {
     }
 };
 
+const handleImageDeleted = () => {
+    imageFilenames.value = [];
+    page.value = 1;
+    fetchImageFilenames();
+    fetchFaces();
+};
+
 const fetchTags = async () => {
     try {
         const token = localStorage.getItem('token');
@@ -212,7 +253,7 @@ const performSearch = async () => {
         const token = localStorage.getItem('token');
         if (searchQuery.value.length >= 3) {
             const endpoint = currentAlbum.value === 'my' ? 'searchImages' : `searchSharedImages/${currentAlbum.value}`;
-            const response = await fetch(`http://localhost:3000/${endpoint}?query=${searchQuery.value}&option=title`, {
+            const response = await fetch(`http://localhost:3000/${endpoint}?query=${encodeURIComponent(searchQuery.value)}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -373,7 +414,7 @@ const observeElement = (element) => {
     observer.observe(element);
 };
 
-onMounted(() => {
+const loadpage = () => {
     fetchImageFilenames();
     fetchTags();
     fetchFaces();
@@ -402,6 +443,14 @@ onMounted(() => {
     if (loadMoreTrigger.value) {
         observeElement(loadMoreTrigger.value);
     }
+}
+
+const sortImages = (order) => {
+    sortOrder.value = order;
+};
+
+onMounted(() => {
+    loadpage();
 });
 
 watch(currentAlbum, async () => {
@@ -569,4 +618,33 @@ watch(currentAlbum, async () => {
     color: white;
     transform: rotate(180deg);
 }
+
+.no-imgs {
+    color: white;
+    align-self: center;
+    justify-self: center;
+}
+.sort-buttons {
+    display: flex;
+    flex-direction: column;
+    /*position: absolute;*/
+}
+
+.sort-button {
+    max-height: 5px;
+    background-color: black;
+    border: none;
+    border-radius: 0;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.sort-button:hover {
+    background-color: #555;
+    color: white;
+}
+
+.sort-newest {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.6); /* Adds a separator line between buttons */
+}
+
 </style>

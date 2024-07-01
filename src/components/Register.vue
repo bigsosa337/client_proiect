@@ -12,11 +12,11 @@
                     <span class="register100-form-title">
                         Member Register
                     </span>
-                    <div class="wrap-input100 validate-input" data-validate="Username is required">
-                        <input class="input100" type="text" id="username" name="username" v-model="username" placeholder="Username">
+                    <div class="wrap-input100 validate-input" data-validate="Valid email is required: ex@abc.xyz">
+                        <input class="input100" type="email" id="email" name="email" v-model="email" placeholder="Email">
                         <span class="focus-input100"></span>
                         <span class="symbol-input100">
-                            <i class="fa fa-user" aria-hidden="true"></i>
+                            <i class="fa fa-envelope" aria-hidden="true"></i>
                         </span>
                     </div>
                     <div class="wrap-input100 validate-input" data-validate="Password is required">
@@ -26,11 +26,11 @@
                             <i class="fa fa-lock" aria-hidden="true"></i>
                         </span>
                     </div>
-                    <div class="wrap-input100 validate-input" data-validate="Valid email is required: ex@abc.xyz">
-                        <input class="input100" type="email" id="email" name="email" v-model="email" placeholder="Email">
+                    <div class="wrap-input100 validate-input" data-validate="Username is required">
+                        <input class="input100" type="text" id="username" name="username" v-model="username" placeholder="Username">
                         <span class="focus-input100"></span>
                         <span class="symbol-input100">
-                            <i class="fa fa-envelope" aria-hidden="true"></i>
+                            <i class="fa fa-user" aria-hidden="true"></i>
                         </span>
                     </div>
                     <div class="container-register100-form-btn">

@@ -9,9 +9,8 @@
                     <h1>Upload Image</h1>
                     <div class="header">
                         <div v-if="!imageSrc" class="dropzone">
-                            <input type="file" @change="onFileChange" />
                             <div class="drag-area">
-                                <p>Click to select files</p>
+                                <FileUpload name="demo[]" mode="basic" class="upload" customUpload auto chooseLabel="Select Image" @select="onFileSelect" />
                             </div>
                         </div>
                         <div v-if="imageSrc" class="image-container">
@@ -46,20 +45,23 @@
         </template>
     </Dialog>
 </template>
+
 <script>
-import { defineComponent, ref, watch, onMounted } from 'vue';
+import {defineComponent, ref, watch, onMounted, nextTick} from 'vue';
 import { useRouter } from 'vue-router';
 import * as faceapi from 'face-api.js';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
+import FileUpload from 'primevue/fileupload';
 import { HuggingFaceApiKey } from "@/utils";
 
 export default defineComponent({
     components: {
         InputText,
         Button,
-        Dialog
+        Dialog,
+        FileUpload
     },
     props: {
         visible: {
@@ -186,8 +188,8 @@ export default defineComponent({
             });
         };
 
-        const onFileChange = (e) => {
-            const file = e.target.files[0];
+        const onFileSelect = (event) => {
+            const file = event.files[0];
             setImage(file);
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -204,26 +206,33 @@ export default defineComponent({
                 return;
             }
             try {
+                await nextTick();
+
                 const imageElement = new Image();
                 imageElement.src = imageSrc.value;
                 imageElement.onload = async () => {
-                    const autoTags = await autoGenTags(imageSrc.value);
-                    const imgDescription = await analyzeImage(imageSrc.value);
-                    const faces = await findFaces(imageElement);
-                    console.log('Faces:', faces);
-                    console.log('Tags Analysis Success:', autoTags);
-                    console.log('Image Analysis Success:', imgDescription);
-                    setTags(autoTags);
-                    setTitle(imgDescription);
+                    try {
+                        const autoTags = await autoGenTags(imageSrc.value);
+                        const imgDescription = await analyzeImage(imageSrc.value);
+                        await findFaces(imageElement);
+                        setTags(autoTags);
+                        setTitle(imgDescription);
+                    } catch (error) {
+                        console.error('Error auto-tagging:', error);
+                        alert('Error: Failed to generate auto-tags.');
+                    } finally {
+                        loading.value = false;
+                        tagLoading.value = false;
+                    }
                 };
             } catch (error) {
                 console.error('Error auto-tagging:', error);
                 alert('Error: Failed to generate auto-tags.');
-            } finally {
                 loading.value = false;
                 tagLoading.value = false;
             }
         };
+
 
         const clearSelection = () => {
             setImage(null);
@@ -289,7 +298,7 @@ export default defineComponent({
             loading,
             tagLoading,
             faces,
-            onFileChange,
+            onFileSelect,
             autoTagImage,
             clearSelection,
             submitForm,
@@ -446,7 +455,23 @@ h1 {
     border-color: #f3f3f3;
     border-top-color: #3498db;
 }
+.action-button {
+    background: none;
+    border: none;
+    color: #000;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
+}
 
+.action-button:hover {
+    background: #000;
+    color: #fff;
+}
+.drag-area {
+    width: 250px;
+    height: 250px;
+}
 @keyframes spin {
     0% {
         transform: rotate(0deg);
