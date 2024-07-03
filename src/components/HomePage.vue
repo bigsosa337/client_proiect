@@ -226,6 +226,7 @@ const handleImageDeleted = () => {
     fetchImageFilenames();
     fetchFaces();
     fetchTags(); // Update tags after image deletion
+
 };
 
 const fetchTags = async () => {
@@ -363,9 +364,7 @@ const updateEditVisible = (value) => {
 const handleImageUploaded = () => {
     imageFilenames.value = [];
     page.value = 1;
-    fetchImageFilenames();
-    fetchFaces(); // Update faces after image upload
-    fetchTags(); // Update tags after image upload
+    loadpage()
 };
 
 const openEditDetails = () => {
