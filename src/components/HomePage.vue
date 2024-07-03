@@ -106,7 +106,8 @@
             @update:visible="updateEditVisible"
             @close="closeEditDetails"
             :filename="selectedImage"
-            :currentAlbum="currentAlbum"/>
+            :currentAlbum="currentAlbum"
+            @imageUpdated="fetchTags"/>
         <Button
             icon="pi pi-plus"
             class="floating-button"
@@ -125,7 +126,7 @@ import Button from 'primevue/button';
 import ImageItem from './ImageItem.vue';
 import ImageDetails from './ImageDetails.vue';
 import UploadModal from './UploadPicture.vue';
-import EditDetails from './EditDetails.vue'; // Import the EditDetails component
+import EditDetails from './EditDetails.vue';
 import { map } from 'lodash';
 import Carousel from 'primevue/carousel';
 
@@ -151,7 +152,7 @@ const isFetching = ref(false);
 const hasMoreImages = ref(true);
 const isSearching = ref(false);
 const loadMoreTrigger = ref(null);
-const sortOrder = ref('oldest'); // Default sort order
+const sortOrder = ref('oldest');
 
 const sortedImageFilenames = computed(() => {
     return sortOrder.value === 'newest'
@@ -224,6 +225,7 @@ const handleImageDeleted = () => {
     page.value = 1;
     fetchImageFilenames();
     fetchFaces();
+    fetchTags(); // Update tags after image deletion
 };
 
 const fetchTags = async () => {
@@ -318,7 +320,7 @@ const loadMyAlbum = () => {
     imageFilenames.value = [];
     hasMoreImages.value = true;
     fetchImageFilenames();
-    fetchFaces(); // Update faces when switching albums
+    fetchFaces();
 };
 
 const loadSharedAlbum = (userId) => {
@@ -327,7 +329,7 @@ const loadSharedAlbum = (userId) => {
     imageFilenames.value = [];
     hasMoreImages.value = true;
     fetchImageFilenames();
-    fetchFaces(); // Update faces when switching albums
+    fetchFaces();
 };
 
 const openImageDetails = (filename) => {
@@ -363,6 +365,7 @@ const handleImageUploaded = () => {
     page.value = 1;
     fetchImageFilenames();
     fetchFaces(); // Update faces after image upload
+    fetchTags(); // Update tags after image upload
 };
 
 const openEditDetails = () => {
@@ -458,9 +461,10 @@ watch(currentAlbum, async () => {
     page.value = 1;
     hasMoreImages.value = true;
     await fetchImageFilenames();
-    fetchFaces(); // Update faces when switching albums
+    fetchFaces();
 });
 </script>
+
 
 <style scoped>
 .home-page {

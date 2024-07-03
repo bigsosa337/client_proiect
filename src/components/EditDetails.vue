@@ -111,7 +111,7 @@ export default {
                 const data = {
                     title: this.title,
                     description: this.description,
-                    tags: this.tags.split(","),
+                    tags: this.tags.split(",").map(tag => tag.trim()), // Split and trim tags
                 };
                 const token = localStorage.getItem('token');
                 const response = await fetch(`http://localhost:3000/updateImage/${this.filename}`, {
@@ -207,6 +207,7 @@ export default {
 .image-container {
     display: flex;
     justify-content: center;
+    max-height:50vh;
 }
 
 img {
